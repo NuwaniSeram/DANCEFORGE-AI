@@ -322,6 +322,54 @@
   transform: translateY(-2px);
 }
 
+/* Filters */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.filter-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.filter-chip {
+  padding: 0.55rem 1.2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 107, 157, 0.2);
+  border-color: rgba(255, 107, 157, 0.4);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.filter-chip.active {
+  background: rgba(255, 107, 157, 0.35);
+  border-color: rgba(255, 107, 157, 0.6);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(255, 107, 157, 0.25);
+}
+
 /* Loading and Error States */
 .loading {
   text-align: center;
@@ -366,6 +414,30 @@
   line-height: 1.8;
   white-space: pre-wrap;
   font-size: 1.05rem;
+}
+
+/* Collections */
+.collection-section {
+  margin-top: 2.5rem;
+}
+
+.collection-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.collection-header h2 {
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.collection-count {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
 }
 
 /* Video Grid */
@@ -427,7 +499,6 @@
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
   display: block;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
@@ -435,6 +506,43 @@
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.95rem;
   line-height: 1.6;
+}
+
+/* Pagination */
+.pagination {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.page-button {
+  padding: 0.75rem 1.6rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.page-button:hover:not(:disabled) {
+  background: rgba(255, 107, 157, 0.25);
+  border-color: rgba(255, 107, 157, 0.5);
+  transform: translateY(-2px);
+}
+
+.page-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.page-info {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
 }
 
 /* Music Recommendations */
@@ -544,6 +652,30 @@
   transform: translateY(-2px);
 }
 
+/* Library CTA */
+.library-cta {
+  margin-top: 2.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.library-button {
+  padding: 1rem 2.25rem;
+  background: linear-gradient(135deg, rgba(168, 216, 234, 0.8) 0%, rgba(255, 107, 157, 0.7) 100%);
+  color: #0a0a0f;
+  border-radius: 16px;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.library-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(255, 107, 157, 0.3);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .navbar {
@@ -575,6 +707,15 @@
   }
   
   .search-form {
+    flex-direction: column;
+  }
+
+  .collection-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pagination {
     flex-direction: column;
   }
 }

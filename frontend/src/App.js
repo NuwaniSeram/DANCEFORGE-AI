@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import './App.css';
 import Dashboard from './pages/Dashboard';
 import DigitalArchive from './pages/DigitalArchive';
+import Library from './pages/Library';
 import Page1 from './pages/Page1';
 import Page2 from './pages/Page2';
 import Page3 from './pages/Page3';
@@ -61,6 +62,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/archive" element={<DigitalArchive />} />
+            <Route path="/library" element={<Library />} />
             <Route path="/page1" element={<Page1 />} />
             <Route path="/page2" element={<Page2 />} />
             <Route path="/page3" element={<Page3 />} />
