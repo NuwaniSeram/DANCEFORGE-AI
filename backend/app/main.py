@@ -1,7 +1,21 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database.mongodb import users_collection
+from app.routes import videos
 
-app = FastAPI()
+app = FastAPI(title="DanceForge AI API")
+
+# CORS middleware to allow frontend to access API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(videos.router)
 
 @app.get("/")
 def test_db():
