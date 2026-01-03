@@ -11,10 +11,18 @@ function DigitalArchive() {
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 6;
 
   useEffect(() => {
     loadVideos();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchResults, selectedCategory]);
 
   const loadVideos = async () => {
     setLoading(true);
@@ -63,7 +71,44 @@ function DigitalArchive() {
     'up-country dance style',
   ];
 
-  const displayVideos = searchResults?.matches || videos;
+  const categories = ['All', 'Udarata', 'Pahatharata', 'Bharata', 'Western'];
+
+  const getCategory = (video) => {
+    const text = [
+      video.label,
+      video.type,
+      video.description,
+      video.fullDescription,
+      video.filename,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    if (text.includes('udarata') || text.includes('up country') || text.includes('up-country')) {
+      return 'Udarata';
+    }
+    if (text.includes('pahatharata') || text.includes('low country')) {
+      return 'Pahatharata';
+    }
+    if (text.includes('bharatanatyam') || text.includes('bharata')) {
+      return 'Bharata';
+    }
+    if (text.includes('western')) {
+      return 'Western';
+    }
+    return 'Other';
+  };
+
+  const displayVideos = searchResults?.matches || [];
+  const filteredVideos = selectedCategory === 'All'
+    ? displayVideos
+    : displayVideos.filter((video) => getCategory(video) === selectedCategory);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVideos.length / itemsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * itemsPerPage;
+  const paginatedVideos = filteredVideos.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="archive-container">
@@ -105,6 +150,24 @@ function DigitalArchive() {
         </div>
       </div>
 
+      {searchResults && (
+        <div className="filter-bar">
+          <span className="filter-label">Category:</span>
+          <div className="filter-chips">
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                className={`filter-chip ${selectedCategory === category ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && <div className="error">{error}</div>}
 
       {searchResults && (
@@ -144,20 +207,20 @@ function DigitalArchive() {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">Loading videos...</div>
-      ) : (
+      {loading && <div className="loading">Loading videos...</div>}
+
+      {searchResults && !loading && (
         <div>
           <h2 style={{ marginTop: '2rem', marginBottom: '1rem', color: '#333' }}>
-            {searchResults ? 'Matched Videos' : 'All Videos'}
+            Matched Videos
           </h2>
-          
-          {displayVideos.length === 0 ? (
+
+          {filteredVideos.length === 0 ? (
             <div className="loading">No videos found.</div>
           ) : (
             <div className="video-grid">
-              {displayVideos.map((video, index) => (
-                <div key={index} className="video-card">
+              {paginatedVideos.map((video) => (
+                <div key={video.filename} className="video-card">
                   <div className="video-wrapper">
                     <video controls>
                       <source src={`${API_BASE_URL}${video.url}`} type="video/mp4" />
@@ -181,6 +244,30 @@ function DigitalArchive() {
         </div>
       )}
 
+      {searchResults && filteredVideos.length > 0 && (
+        <div className="pagination">
+          <button
+            type="button"
+            className="page-button"
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={safePage === 1}
+          >
+            Prev
+          </button>
+          <div className="page-info">
+            Page {safePage} of {totalPages}
+          </div>
+          <button
+            type="button"
+            className="page-button"
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            disabled={safePage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
+
       {searchResults && (
         <button
           onClick={() => {
@@ -189,12 +276,17 @@ function DigitalArchive() {
           }}
           className="clear-search-btn"
         >
-          Clear Search & Show All Videos
+          Clear Search
         </button>
       )}
+
+      <div className="library-cta">
+        <a className="library-button" href="/library">
+          Go to Full Library
+        </a>
+      </div>
     </div>
   );
 }
 
 export default DigitalArchive;
-
