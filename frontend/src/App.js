@@ -32,7 +32,7 @@ function Navigation() {
         </li>
         <li>
           <Link to="/emotion" className={location.pathname === '/emotion' ? 'active' : ''}>
-          choreography Studio
+          Choreography Studio
         </Link>
         </li>
         <li>
