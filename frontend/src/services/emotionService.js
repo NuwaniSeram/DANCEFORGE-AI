@@ -1,9 +1,27 @@
-export const predictEmotion = async (segment) => {
-  // Mock delay (simulate backend processing)
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+const NAVARASA = [
+  "Shringara",
+  "Hasya",
+  "Karuna",
+  "Raudra",
+  "Veera",
+  "Bhayanaka",
+  "Bibhatsa",
+  "Adbutha",
+  "Shantha",
+];
 
-  // Mock response (replace later with real API)
+const INTENSITY = ["low", "medium", "high"];
+
+const getRandomItem = (arr) =>
+  arr[Math.floor(Math.random() * arr.length)];
+
+export const predictEmotion = async (segment) => {
+  // Simulate backend latency
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  // Mock believable output
   return {
-    emotion: "Shringara",
+    emotion: getRandomItem(NAVARASA),
+    intensity: getRandomItem(INTENSITY),
   };
 };
