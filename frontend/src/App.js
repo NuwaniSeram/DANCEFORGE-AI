@@ -1,3 +1,4 @@
+//App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css';
@@ -6,7 +7,7 @@ import DigitalArchive from './pages/DigitalArchive';
 import Library from './pages/Library';
 import Page1 from './pages/Page1';
 import Page2 from './pages/Page2';
-import Page3 from './pages/Page3';
+import FusionStudio from './pages/FusionStudio';
 import Page4 from './pages/Page4';
 
 function Navigation() {
@@ -39,8 +40,8 @@ function Navigation() {
           </Link>
         </li>
         <li>
-          <Link to="/page3" className={location.pathname === '/page3' ? 'active' : ''}>
-            Page 3
+          <Link to="/fusionstudio" className={location.pathname === '/fusionstudio' ? 'active' : ''}>
+            Fusion Studio
           </Link>
         </li>
         <li>
@@ -65,7 +66,7 @@ function App() {
             <Route path="/library" element={<Library />} />
             <Route path="/page1" element={<Page1 />} />
             <Route path="/page2" element={<Page2 />} />
-            <Route path="/page3" element={<Page3 />} />
+            <Route path="/fusionstudio" element={<FusionStudio />} />
             <Route path="/page4" element={<Page4 />} />
           </Routes>
         </main>
