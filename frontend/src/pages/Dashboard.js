@@ -13,10 +13,10 @@ function Dashboard() {
       iconColor: '#ff6b9d'
     },
     {
-      title: 'Choreography Studio',
-      description: 'Create and visualize dance choreographies with our advanced tools. Design sequences, plan movements, and bring your artistic vision to life.',
+      title: 'Emotional Choreography Studio',
+      description: 'Analyze the emotional flow of Sinhala songs and visualize Navarasa intensity across segments. Use emotional arcs to guide movement dynamics, transitions, and expressive choreography design.',
       Icon: Sparkles,
-      path: '/page1',
+      path: '/emotion',
       iconColor: '#a8d8ea'
     },
     {
