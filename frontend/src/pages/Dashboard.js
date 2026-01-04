@@ -1,6 +1,7 @@
+//Dashboard
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Video, Sparkles, BarChart3, BookOpen, Users } from 'lucide-react';
+import { Video, Sparkles, BarChart3, BookOpen, Users, Shuffle } from 'lucide-react';
 
 function Dashboard() {
   const features = [
@@ -26,12 +27,19 @@ function Dashboard() {
       iconColor: '#ffa500'
     },
     {
-      title: 'Learning Hub',
-      description: 'Access tutorials, guides, and educational content. Learn traditional dance forms and master new techniques at your own pace.',
-      Icon: BookOpen,
-      path: '/page3',
+      title: 'Dance Style Fusion Studio',
+      description: 'Transform dance movements across styles using AI-powered motion transfer. Blend cultural dance forms, preserve rhythm and expression, and explore creative choreography variations.',
+      Icon: Shuffle,
+      path: '/fusionstudio',
       iconColor: '#c44569'
     },
+    // {
+    //   title: 'Learning Hub',
+    //   description: 'Access tutorials, guides, and educational content. Learn traditional dance forms and master new techniques at your own pace.',
+    //   Icon: BookOpen,
+    //   path: '/page3',
+    //   iconColor: '#c44569'
+    // },
     {
       title: 'Community Gallery',
       description: 'Share your performances, connect with other dancers, and showcase your work in our vibrant community space.',
