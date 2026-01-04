@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { predictEmotion } from "../services/emotionService";
+//import { predictEmotion } from "../services/emotionService";
 
 const emotionThemes = {
   happy: { 

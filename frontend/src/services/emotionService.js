@@ -16,10 +16,10 @@ const getRandomItem = (arr) =>
   arr[Math.floor(Math.random() * arr.length)];
 
 export const predictEmotion = async (segment) => {
-  // Simulate backend latency
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+  
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // Mock believable output
+  // e output
   return {
     emotion: getRandomItem(NAVARASA),
     intensity: getRandomItem(INTENSITY),
