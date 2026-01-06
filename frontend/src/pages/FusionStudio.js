@@ -22,15 +22,39 @@ function FusionStudio() {
     setTargetStyle("");
   };
 
-  const handleDetectStyle = () => {
-    if (!video) return alert("Please upload a video");
+  // const handleDetectStyle = () => {
+  //   if (!video) return alert("Please upload a video");
 
-    setLoading(true);
-    setTimeout(() => {
-      setDetectedStyle("Contemporary");
-      setLoading(false);
-    }, 1500);
-  };
+  //   setLoading(true);
+  //   setTimeout(() => {
+  //     setDetectedStyle("Contemporary");
+  //     setLoading(false);
+  //   }, 1500);
+  // };
+
+  const handleDetectStyle = async () => {
+  if (!video) return alert("Please upload a video");
+
+  setLoading(true);
+
+  const formData = new FormData();
+  formData.append("file", video);
+
+  try {
+    const response = await fetch("http://localhost:8000/detect/", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+    setDetectedStyle(data.dance_style);
+  } catch (err) {
+    alert("Error detecting dance style");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleStyleTransfer = () => {
     if (!targetStyle) return alert("Please select a target style");
