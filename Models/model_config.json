@@ -1,0 +1,10 @@
+{
+  "num_styles": 3,
+  "latent_dim": 64,
+  "style_names": [
+    "Contemporary",
+    "HipHop",
+    "Kandyan"
+  ],
+  "target_frames": 100
+}
