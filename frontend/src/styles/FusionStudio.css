@@ -714,3 +714,63 @@
     width: 100%;
   }
 }
+
+/* Video Preview Styles */
+.video-preview-section {
+  margin-top: 30px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.video-preview-section h3 {
+  margin-bottom: 15px;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.video-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.uploaded-video-preview {
+  width: 100%;
+  max-width: 500px;
+  border-radius: 8px;
+  background: #000;
+  aspect-ratio: 16/9;
+  margin-bottom: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.preview-hint {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Error Section */
+.error-section {
+  border-left: 4px solid #ff4757;
+  background: rgba(255, 71, 87, 0.1);
+}
+
+.error-message {
+  color: #ff4757;
+  margin: 10px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .uploaded-video-preview {
+    max-width: 100%;
+  }
+  
+  .video-preview-section {
+    padding: 15px;
+  }
+}
