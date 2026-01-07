@@ -11,7 +11,7 @@ function Library() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 6;
-  const categories = ['All', 'Udarata', 'Pahatharata', 'Western', 'Bharata'];
+  const categories = ['All', 'Udarata', 'Pahatharata', 'Bharata', 'Hip Hop', 'Ballet', 'Kathak'];
 
   useEffect(() => {
     const loadVideos = async () => {
@@ -53,11 +53,17 @@ function Library() {
     if (text.includes('pahatharata') || text.includes('low country')) {
       return 'Pahatharata';
     }
-    if (text.includes('western')) {
-      return 'Western';
-    }
     if (text.includes('bharatanatyam') || text.includes('bharata')) {
       return 'Bharata';
+    }
+    if (text.includes('hiphop') || text.includes('hip-hop') || text.includes('hip hop')) {
+      return 'Hip Hop';
+    }
+    if (text.includes('ballet')) {
+      return 'Ballet';
+    }
+    if (text.includes('kathak')) {
+      return 'Kathak';
     }
     return 'Other';
   };
@@ -75,7 +81,7 @@ function Library() {
     <div className="archive-container">
       <div className="archive-header">
         <h1>Full Library</h1>
-        <p>All videos in the archive, listed without search or filters.</p>
+        <p>Explore dance choreography videos categorized into distinct styles.</p>
       </div>
 
       <div className="filter-bar">
