@@ -3,29 +3,29 @@
     "filename": "Udarata Rhythms.mp4",
     "label": "Up-Country Traditional Dance",
     "type": "Sinhala Traditional Drum Song",
-    "description": "Male and female performers present an authentic Udarata dance featuring traditional steps, high-energy beats, and powerful drum-driven rhythms.",
-    "fullDescription": "Udarata Rhythms / Up-Country Traditional Dance / Sinhala Traditional Drum Song — Male and female performers present an authentic Udarata dance featuring traditional steps, high-energy beats, and powerful drum-driven rhythms."
+    "description": "Male and female performers present an authentic Udarata dance featuring traditional steps high energy beats and powerful drum driven rhythms",
+    "fullDescription": "Udarata Rhythms / Up-Country Traditional Dance / Sinhala Traditional Drum Song — Male and female performers present an authentic Udarata dance featuring traditional steps high energy beats and powerful drum driven rhythms"
   },
   {
     "filename": "Suraba Walliya.mp4",
     "label": "Pahatharata Traditional Dance",
     "type": "Sinhala Pahatharata Song",
-    "description": "Solo female performance highlighting graceful girly movements expressed through slow rhythmic beats rooted in Pahatharata tradition.",
-    "fullDescription": "Suraba Walliya / Pahatharata Traditional Dance / Sinhala Pahatharata Song — Solo female performance highlighting graceful girly movements expressed through slow rhythmic beats rooted in Pahatharata tradition."
+    "description": "Solo female performance highlighting graceful girly movements expressed through slow rhythmic beats rooted in Pahatharata tradition",
+    "fullDescription": "Suraba Walliya / Pahatharata Traditional Dance / Sinhala Pahatharata Song — Solo female performance highlighting graceful girly movements expressed through slow rhythmic beats rooted in Pahatharata tradition"
   },
   {
     "filename": "Waramathi.mp4",
     "label": "Udarata Fusion Dance",
     "type": "Waramathi Song",
-    "description": "Male and female performers present a fusion interpretation of Udarata dance tradition, blending traditional steps with modern expressions in a coordinated duet performance.",
-    "fullDescription": "Waramathi / Udarata Fusion Dance / Waramathi Song — Male and female performers present a fusion interpretation of Udarata dance tradition, blending traditional steps with modern expressions in a coordinated duet performance."
+    "description": "Male and female performers present a fusion interpretation of Udarata dance tradition blending traditional steps with modern expressions in a coordinated duet performance",
+    "fullDescription": "Waramathi / Udarata Fusion Dance / Waramathi Song — Male and female performers present a fusion interpretation of Udarata dance tradition blending traditional steps with modern expressions in a coordinated duet performance"
   },
   {
     "filename": "Giridevi.mp4",
     "label": "Pahatharata Traditional Dance",
     "type": "Giridevi Song",
-    "description": "Solo female performance presenting the Giridevi dance through authentic Pahatharata movements accompanied by distinctive drum beats and traditional rhythmic patterns.",
-    "fullDescription": "Giridevi / Pahatharata Traditional Dance / Giridevi Song — Solo female performance presenting the Giridevi dance through authentic Pahatharata movements accompanied by distinctive drum beats and traditional rhythmic patterns."
+    "description": "Solo female performance presenting the Giridevi dance through authentic Pahatharata movements accompanied by distinctive drum beats and traditional rhythmic patterns",
+    "fullDescription": "Giridevi / Pahatharata Traditional Dance / Giridevi Song — Solo female performance presenting the Giridevi dance through authentic Pahatharata movements accompanied by distinctive drum beats and traditional rhythmic patterns"
   },
   {
     "filename": "Udarata Thaala.mp4",
@@ -69,25 +69,110 @@
     "description": "Solo female performance presenting a pure Udarata dance enriched with fusion choreographed steps performed to traditional bera rhythms",
     "fullDescription": "Mangalam Dance / Up Country Traditional Dance / Mangalam Song with Sinhala Udarata Drum Beats — Solo female performance presenting a pure Udarata dance enriched with fusion choreographed steps performed to traditional bera rhythms"
   },
+
   {
-    "filename": "Gajaga Dance.mp4",
-    "label": "Up Country Traditional Dance",
-    "type": "Sinhala Traditional Drum Beats",
-    "description": "Duo female performance presenting slow rhythmic Udarata dance steps with graceful movements expressive body lines and traditional bera beats",
-    "fullDescription": "Gajaga Dance / Up Country Traditional Dance / Sinhala Traditional Drum Beats — Duo female performance presenting slow rhythmic Udarata dance steps with graceful movements expressive body lines and traditional bera beats"
+    "filename": "Lag Jaa Gale.mp4",
+    "label": "Contemporary Dance",
+    "type": "Natya Social Choreography",
+    "description": "Male and female performers express deep sadness and emotional longing through soft controlled movements and expressive contemporary choreography",
+    "fullDescription": "Lag Jaa Gale / Contemporary Dance / Natya Social Choreography — Male and female performers express deep sadness and emotional longing through soft controlled movements and expressive contemporary choreography"
   },
   {
-    "filename": "Bharatanatyam.mp4",
+    "filename": "Te Amo.mp4",
+    "label": "Contemporary Dance",
+    "type": "Contemporary Music",
+    "description": "Solo female performance expressing joyful emotions through fluid contemporary steps featuring bends body flexibility and smooth transitions",
+    "fullDescription": "Te Amo / Contemporary Dance / Contemporary Music — Solo female performance expressing joyful emotions through fluid contemporary steps featuring bends body flexibility and smooth transitions"
+  },
+  {
+    "filename": "Swag Miyauchi.mp4",
+    "label": "Hip Hop Dance",
+    "type": "Swag Song",
+    "description": "Trio male performance delivering energetic hip hop steps with strong swag attitude sharp movements and high intensity execution",
+    "fullDescription": "Swag Miyauchi / Hip Hop Dance / Swag Song — Trio male performance delivering energetic hip hop steps with strong swag attitude sharp movements and high intensity execution"
+  },
+  {
+    "filename": "Worth It.mp4",
+    "label": "Hip Hop Dance",
+    "type": "Worth It Song",
+    "description": "Duo female performance showcasing high energy hip hop steps driven by strong beats joyful expressions and confident synchronized movements",
+    "fullDescription": "Worth It / Hip Hop Dance / Worth It Song — Duo female performance showcasing high energy hip hop steps driven by strong beats joyful expressions and confident synchronized movements"
+  },
+  {
+    "filename": "Low Hip Hop Dance.mp4",
+    "label": "Hip Hop Dance",
+    "type": "Flo Rida and T Pain Song",
+    "description": "Solo male performance delivering energetic hip hop choreography with strong beats dynamic footwork and powerful stage presence",
+    "fullDescription": "Low Hip Hop Dance / Hip Hop Dance / Flo Rida and T Pain Song — Solo male performance delivering energetic hip hop choreography with strong beats dynamic footwork and powerful stage presence"
+  },
+  {
+    "filename": "Ae Dil Hai Mushkil Title Track.mp4",
+    "label": "Contemporary Dance",
+    "type": "Sonu Joseph Choreography",
+    "description": "Group performance expressing deep sadness and emotional intensity through slow controlled movements and expressive contemporary choreography",
+    "fullDescription": "Ae Dil Hai Mushkil Title Track / Contemporary Dance / Sonu Joseph Choreography — Group performance expressing deep sadness and emotional intensity through slow controlled movements and expressive contemporary choreography"
+  },
+  {
+    "filename": "O Re Piya.mp4",
+    "label": "Contemporary Dance",
+    "type": "O Re Piya Song",
+    "description": "Solo male performance conveying deep sadness and emotional expression through soft contemporary movements and expressive choreography",
+    "fullDescription": "O Re Piya / Contemporary Dance / O Re Piya Song — Solo male performance conveying deep sadness and emotional expression through soft contemporary movements and expressive choreography"
+  },
+  {
+    "filename": "Baby Hip Hop Dance.mp4",
+    "label": "Hip Hop Dance",
+    "type": "Justin Bieber Song",
+    "description": "Duo female performance delivering energetic hip hop steps with playful movements high energy and joyful expressions",
+    "fullDescription": "Baby Hip Hop Dance / Hip Hop Dance / Justin Bieber Song — Duo female performance delivering energetic hip hop steps with playful movements high energy and joyful expressions"
+  },
+  {
+    "filename": "Senorita Freestyle Hip Hop Dance.mp4",
+    "label": "Hip Hop Dance",
+    "type": "Senorita Song",
+    "description": "Duo female performance presenting sensational freestyle hip hop movements with confident style high energy and joyful expressions",
+    "fullDescription": "Senorita Freestyle Hip Hop Dance / Hip Hop Dance / Senorita Song — Duo female performance presenting sensational freestyle hip hop movements with confident style high energy and joyful expressions"
+  },
+  {
+    "filename": "Arabian Nights Ballet Dance.mp4",
+    "label": "Ballet Dance",
+    "type": "Arabian Nights Music",
+    "description": "Group ballet performance expressing joyful emotions through elegant ballerina movements graceful formations and expressive storytelling",
+    "fullDescription": "Arabian Nights Ballet Dance / Ballet Dance / Arabian Nights Music — Group ballet performance expressing joyful emotions through elegant ballerina movements graceful formations and expressive storytelling"
+  },
+  {
+    "filename": "Ballet Grace.mp4",
+    "label": "Ballet Dance",
+    "type": "Instrumental Music",
+    "description": "Group female performance presenting slow graceful ballet movements to subtle music with gentle steps and joyful expressions",
+    "fullDescription": "Ballet Grace / Ballet Dance / Instrumental Music — Group female performance presenting slow graceful ballet movements to subtle music with gentle steps and joyful expressions"
+  },
+  {
+    "filename": "Ballet Soul.mp4",
+    "label": "Ballet Dance",
+    "type": "Instrumental Music",
+    "description": "Group female performance delivering expressive ballet steps with soulful choreography fluid transitions and emotional depth",
+    "fullDescription": "Ballet Soul / Ballet Dance / Instrumental Music — Group female performance delivering expressive ballet steps with soulful choreography fluid transitions and emotional depth"
+  },
+  {
+    "filename": "Kathak Classical Indian Dance.mp4",
     "label": "Classical Indian Dance",
-    "type": "Bharatanatyam Music",
-    "description": "Solo female performance showcasing pure Bharatanatyam technique through traditional steps expressive gestures and classical rhythmic structure",
-    "fullDescription": "Bharatanatyam / Classical Indian Dance / Bharatanatyam Music — Solo female performance showcasing pure Bharatanatyam technique through traditional steps expressive gestures and classical rhythmic structure"
+    "type": "Kathak Music",
+    "description": "Male and female performers present a pure Kathak duet with expressive emotions intricate footwork and traditional Kathak movement vocabulary",
+    "fullDescription": "Kathak Classical Indian Dance / Classical Indian Dance / Kathak Music — Male and female performers present a pure Kathak duet with expressive emotions intricate footwork and traditional Kathak movement vocabulary"
   },
   {
-    "filename": "Pahatharata Fusion Dance.mp4",
-    "label": "Low Country Traditional Dance",
-    "type": "Sinhala Pahatharata Song Mix",
-    "description": "Solo female performance transitioning from slow rhythmic movements to energetic sequences blending traditional Pahatharata steps with fusion choreography",
-    "fullDescription": "Pahatharata Fusion Dance / Low Country Traditional Dance / Sinhala Pahatharata Song Mix — Solo female performance transitioning from slow rhythmic movements to energetic sequences blending traditional Pahatharata steps with fusion choreography"
+    "filename": "Kathak Bole.mp4",
+    "label": "Classical Indian Dance",
+    "type": "Kathak Music",
+    "description": "Solo female performance presenting pure Kathak dance with intricate footwork expressive gestures and rhythmic movement aligned to traditional music beats",
+    "fullDescription": "Kathak Bole / Classical Indian Dance / Kathak Music — Solo female performance presenting pure Kathak dance with intricate footwork expressive gestures and rhythmic movement aligned to traditional music beats"
+  },
+  {
+    "filename": "O Re Piya Kathak Fusion Dance.mp4",
+    "label": "Kathak Fusion Dance",
+    "type": "O Re Piya Song",
+    "description": "Solo female performance expressing joyful emotions through graceful fusion Kathak steps expressive movements and musical sensitivity",
+    "fullDescription": "O Re Piya Kathak Fusion Dance / Kathak Fusion Dance / O Re Piya Song — Solo female performance expressing joyful emotions through graceful fusion Kathak steps expressive movements and musical sensitivity"
   }
 ]
