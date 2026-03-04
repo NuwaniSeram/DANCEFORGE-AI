@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { predictEmotion } from "../services/emotionService";
+import { analyzeSongVerses } from "../services/emotionService";
 
 const emotionThemes = {
   happy: { 
@@ -100,21 +100,23 @@ function EmotionAnalysis() {
     setLoading(true);
     setResults([]);
 
-    const segments = segmentLyrics(lyrics);
-    const analysisResults = [];
+    try {
+      // ✅ ONE request: backend splits verses and returns verse-wise emotions
+      const verseResults = await analyzeSongVerses(lyrics);
 
-    for (let i = 0; i < segments.length; i++) {
-      const response = await predictEmotion(segments[i]);
+      const analysisResults = verseResults.map((r) => ({
+        segment: r.verse,       // keep UI field name "segment"
+        emotion: r.emotion,
+        intensity: r.intensity,
+      }));
 
-      analysisResults.push({
-        segment: segments[i],
-        emotion: response.emotion,
-        intensity: response.intensity,
-      });
+      setResults(analysisResults);
+    } catch (err) {
+      console.error(err);
+      alert("Emotion analysis failed. Check backend is running and accessible.");
+    } finally {
+      setLoading(false);
     }
-
-    setResults(analysisResults);
-    setLoading(false);
   };
 
   // Main Styles
