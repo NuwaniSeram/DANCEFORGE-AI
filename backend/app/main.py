@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database.mongodb import users_collection
 from app.routes import videos
-from app.routes import emotions
+from app.routes import emotion_routes
 
 app = FastAPI(title="DanceForge AI API")
 
@@ -17,7 +17,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(videos.router)
-app.include_router(emotions.router)
+app.include_router(emotion_routes.router)
 
 @app.get("/")
 def test_db():
