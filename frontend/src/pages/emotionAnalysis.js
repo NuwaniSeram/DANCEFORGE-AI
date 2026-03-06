@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { analyzeSongVerses } from "../services/emotionService";
 
+const emotionNameMap = {
+  Shringara: "Romantic",
+  Hasya: "Joyful",
+  Karuna: "Sad",
+  Roudhra: "Angry",
+  Veera: "Heroic",
+  Bhayanakam: "Fearful",
+  Bhibatsa: "Disgust",
+  Adbhutha: "Wonder",
+  Shantha: "Peaceful"
+};
+
 const emotionThemes = {
   happy: { 
     gradient: "linear-gradient(135deg, #FFD700 0%, #FFB347 100%)",
@@ -80,11 +92,23 @@ function EmotionAnalysis() {
       .filter((line) => line.length > 0);
   };
 
+  const getDisplayEmotion = (emotion) => {
+    return emotionNameMap[emotion] || emotion;
+  };
+
   const getEmotionTheme = (emotion) => {
-    const lowerEmotion = emotion.toLowerCase();
-    for (const [key, theme] of Object.entries(emotionThemes)) {
-      if (lowerEmotion.includes(key)) return theme;
-    }
+    const displayEmotion = getDisplayEmotion(emotion).toLowerCase();
+
+    if (displayEmotion.includes("joy")) return emotionThemes.happy;
+    if (displayEmotion.includes("sad")) return emotionThemes.sad;
+    if (displayEmotion.includes("romantic")) return emotionThemes.romantic;
+    if (displayEmotion.includes("angry")) return emotionThemes.angry;
+    if (displayEmotion.includes("peace")) return emotionThemes.peaceful;
+    if (displayEmotion.includes("heroic")) return emotionThemes.energetic;
+    if (displayEmotion.includes("fear")) return emotionThemes.nostalgic;
+    if (displayEmotion.includes("disgust")) return emotionThemes.angry;
+    if (displayEmotion.includes("wonder")) return emotionThemes.default;
+
     return emotionThemes.default;
   };
 
@@ -373,8 +397,8 @@ function EmotionAnalysis() {
     },
     chartContainer: {
       position: "relative",
-      height: "300px",
-      padding: "2rem 0 3rem 0"
+      minHeight: "520px",
+      padding: "2rem 0 4rem 0"
     },
     chartLine: {
       position: "absolute",
@@ -386,10 +410,12 @@ function EmotionAnalysis() {
     },
     barsWrapper: {
       display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-end",
-      height: "100%",
-      padding: "0 1rem"
+      flexWrap: "wrap",
+      justifyContent: "center",
+      alignItems: "stretch",
+      gap: "1.25rem",
+      width: "100%",
+      padding: "0.5rem 0"
     },
     barContainer: {
       display: "flex",
@@ -607,7 +633,7 @@ function EmotionAnalysis() {
               { key: "number", style: styles.segmentNumber },
               String(index + 1).padStart(2, "0")
             ),
-            createEmotionBadge(theme, item.emotion, item.percentage)
+            createEmotionBadge(theme, getDisplayEmotion(item.emotion), item.percentage)
           ]
         ),
         React.createElement(
@@ -615,134 +641,117 @@ function EmotionAnalysis() {
           { key: "text", style: styles.segmentText },
           `"${item.segment}"`
         ),
-        React.createElement(
-          "div",
-          { key: "intensity", style: styles.intensityBar },
-          React.createElement("div", {
-            style: styles.intensityFill(theme, intensityWidth)
-          })
-        ),
-        React.createElement(
-          "div",
-          { key: "label", style: styles.intensityLabel },
-          [
-            React.createElement(
-              "span",
-              { key: "text", style: styles.intensityText },
-              "Intensity"
-            ),
-            React.createElement(
-              "span",
-              { key: "value", style: { ...styles.intensityText, color: "#ffffff", fontWeight: 600 } },
-              `${item.percentage.toFixed(1)}%`
-            )
-          ]
-        )
       ]
     );
   });
 
-  // Create visualization bars
+  // Create visualization bars (vertical bar chart: top 3 emotions per verse)
   const visualizationBars = results.map((item, index) => {
-  return React.createElement(
-    "div",
-    {
-      key: index,
-      style: {
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: "16px",
-        padding: "1rem",
-        minWidth: "220px",
-        flex: "1"
-      }
-    },
-    [
-      React.createElement(
-        "div",
-        {
-          key: "title",
-          style: {
-            color: "#ffffff",
-            fontWeight: 700,
-            marginBottom: "0.75rem",
-            textAlign: "center"
-          }
-        },
-        `Verse ${index + 1}`
-      ),
-
-      ...(item.top3 || []).map((emo, emoIndex) => {
-        const theme = getEmotionTheme(emo.emotion);
-        return React.createElement(
+    return React.createElement(
+      "div",
+      {
+        key: index,
+        style: {
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "16px",
+          padding: "1rem",
+          width: "240px",
+          minWidth: "240px",
+          maxWidth: "240px"
+        }
+      },
+      [
+        React.createElement(
           "div",
           {
-            key: `${index}-${emoIndex}`,
+            key: "title",
             style: {
-              marginBottom: "0.9rem"
+              color: "#ffffff",
+              fontWeight: 700,
+              marginBottom: "1rem",
+              textAlign: "center"
             }
           },
-          [
-            React.createElement(
+          `Verse ${index + 1}`
+        ),
+
+        React.createElement(
+          "div",
+          {
+            key: "chartWrap",
+            style: {
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-evenly",
+              gap: "10px",
+              height: "220px",
+              padding: "0.5rem 0 0.75rem 0",
+              borderBottom: "1px solid rgba(255,255,255,0.12)"
+            }
+          },
+          (item.top3 || []).map((emo, emoIndex) => {
+            const theme = getEmotionTheme(getDisplayEmotion(emo.emotion));
+            return React.createElement(
               "div",
               {
-                key: "labelRow",
+                key: `${index}-${emoIndex}`,
                 style: {
                   display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "0.35rem",
-                  fontSize: "0.85rem"
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  width: "58px"
                 }
               },
               [
                 React.createElement(
-                  "span",
-                  {
-                    key: "emotion",
-                    style: { color: "#ffffff", fontWeight: 600 }
-                  },
-                  emo.emotion
-                ),
-                React.createElement(
-                  "span",
+                  "div",
                   {
                     key: "percent",
-                    style: { color: "rgba(255,255,255,0.7)" }
+                    style: {
+                      color: "rgba(255,255,255,0.8)",
+                      fontSize: "0.8rem",
+                      marginBottom: "0.4rem",
+                      fontWeight: 600
+                    }
                   },
                   `${emo.percentage.toFixed(1)}%`
+                ),
+                React.createElement("div", {
+                  key: "bar",
+                  title: `${getDisplayEmotion(emo.emotion)} - ${emo.percentage.toFixed(1)}%`,
+                  style: {
+                    width: "40px",
+                    height: `${Math.max(18, emo.percentage * 1.8)}px`,
+                    background: theme.gradient,
+                    borderRadius: "10px 10px 0 0",
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+                    transition: "height 0.5s ease"
+                  }
+                }),
+                React.createElement(
+                  "div",
+                  {
+                    key: "label",
+                    style: {
+                      color: "#ffffff",
+                      fontSize: "0.68rem",
+                      marginTop: "0.55rem",
+                      textAlign: "center",
+                      lineHeight: "1.15",
+                      wordBreak: "break-word"
+                    }
+                  },
+                  getDisplayEmotion(emo.emotion)
                 )
               ]
-            ),
-
-            React.createElement(
-              "div",
-              {
-                key: "barBg",
-                style: {
-                  width: "100%",
-                  height: "14px",
-                  background: "rgba(255,255,255,0.08)",
-                  borderRadius: "999px",
-                  overflow: "hidden"
-                }
-              },
-              React.createElement("div", {
-                key: "barFill",
-                style: {
-                  width: `${emo.percentage}%`,
-                  height: "100%",
-                  background: theme.gradient,
-                  borderRadius: "999px",
-                  transition: "width 0.5s ease"
-                }
-              })
-            )
-          ]
-        );
-      })
-    ]
-  );
-});
+            );
+          })
+        )
+      ]
+    );
+  });
 
   // Create legend items
   const legendItems = Object.entries(emotionThemes).map(([emotion, theme]) => {
@@ -768,7 +777,8 @@ function EmotionAnalysis() {
 
     const emotionCounts = {};
     results.forEach((item) => {
-      emotionCounts[item.emotion] = (emotionCounts[item.emotion] || 0) + 1;
+      const displayEmotion = getDisplayEmotion(item.emotion);
+      emotionCounts[displayEmotion] = (emotionCounts[displayEmotion] || 0) + 1;
     });
 
     return Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0][0];
@@ -790,7 +800,7 @@ function EmotionAnalysis() {
       }
     }
 
-    return `Verse ${peakIndex + 1} (${results[peakIndex].emotion}, ${results[peakIndex].percentage.toFixed(1)}%)`;
+    return `Verse ${peakIndex + 1} (${getDisplayEmotion(results[peakIndex].emotion)}, ${results[peakIndex].percentage.toFixed(1)}%)`;
   };
 
   const getMostCommonTransition = () => {
@@ -799,7 +809,7 @@ function EmotionAnalysis() {
     const transitionCounts = {};
 
     for (let i = 0; i < results.length - 1; i++) {
-      const transition = `${results[i].emotion} → ${results[i + 1].emotion}`;
+      const transition = `${getDisplayEmotion(results[i].emotion)} → ${getDisplayEmotion(results[i + 1].emotion)}`;
       transitionCounts[transition] = (transitionCounts[transition] || 0) + 1;
     }
 
@@ -915,7 +925,7 @@ function EmotionAnalysis() {
                           { key: "emotions", style: styles.statItem },
                           [
                             React.createElement("div", { key: "number", style: styles.statNumber }, 
-                              new Set(results.map(r => r.emotion)).size
+                              new Set(results.map(r => getDisplayEmotion(r.emotion))).size
                             ),
                             React.createElement("div", { key: "label", style: styles.statLabel }, "Emotions")
                           ]
