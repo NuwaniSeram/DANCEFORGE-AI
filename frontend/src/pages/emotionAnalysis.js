@@ -44,12 +44,6 @@ const emotionThemes = {
   }
 };
 
-const intensityScale = {
-  low: { height: 40, label: "Low" },
-  medium: { height: 80, label: "Medium" },
-  high: { height: 120, label: "High" }
-};
-
 function EmotionAnalysis() {
   const [lyrics, setLyrics] = useState("");
   const [results, setResults] = useState([]);
@@ -105,9 +99,10 @@ function EmotionAnalysis() {
       const verseResults = await analyzeSongVerses(lyrics);
 
       const analysisResults = verseResults.map((r) => ({
-        segment: r.verse,       // keep UI field name "segment"
+        segment: r.verse,
         emotion: r.emotion,
-        intensity: r.intensity,
+        percentage: r.percentage,
+        top3: r.top3
       }));
 
       setResults(analysisResults);
@@ -345,12 +340,6 @@ function EmotionAnalysis() {
       alignItems: "center",
       gap: "0.5rem"
     }),
-    intensityDot: (intensity) => ({
-      width: "8px",
-      height: "8px",
-      borderRadius: "50%",
-      background: intensity === "high" ? "#FF4757" : intensity === "medium" ? "#FF7F50" : "#2ED573"
-    }),
     segmentText: {
       color: "rgba(255, 255, 255, 0.8)",
       fontSize: "0.95rem",
@@ -358,30 +347,7 @@ function EmotionAnalysis() {
       marginBottom: "1rem",
       fontStyle: "italic"
     },
-    intensityBar: {
-      width: "100%",
-      height: "6px",
-      background: "rgba(255, 255, 255, 0.1)",
-      borderRadius: "3px",
-      overflow: "hidden"
-    },
-    intensityFill: (theme, width) => ({
-      height: "100%",
-      width: `${width}%`,
-      background: theme.gradient,
-      borderRadius: "3px",
-      transition: "width 0.5s ease"
-    }),
-    intensityLabel: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginTop: "0.5rem"
-    },
-    intensityText: {
-      color: "rgba(255, 255, 255, 0.7)",
-      fontSize: "0.85rem"
-    },
+         
     visualizationSection: {
       background: "rgba(20, 20, 30, 0.6)",
       backdropFilter: "blur(20px)",
@@ -526,21 +492,29 @@ function EmotionAnalysis() {
   };
 
   // Helper functions
-  const createEmotionBadge = (theme, emotion, intensity) => {
-    return React.createElement(
-      "div",
-      {
-        style: styles.emotionBadge(theme)
-      },
-      [
-        emotion,
-        React.createElement("div", {
-          key: "dot",
-          style: styles.intensityDot(intensity)
-        })
-      ]
-    );
-  };
+  const createEmotionBadge = (theme, emotion, percentage) => {
+  return React.createElement(
+    "div",
+    {
+      style: styles.emotionBadge(theme)
+    },
+    [
+      React.createElement(
+        "span",
+        { key: "emotion", style: { fontWeight: 700 } },
+        emotion
+      ),
+      React.createElement(
+        "span",
+        {
+          key: "percent",
+          style: { marginLeft: "6px", opacity: 0.85 }
+        },
+        `${percentage.toFixed(1)}%`
+      )
+    ]
+  );
+};
 
   // Create textarea element
   const textarea = React.createElement("textarea", {
@@ -599,7 +573,7 @@ function EmotionAnalysis() {
     const theme = getEmotionTheme(item.emotion);
     const isActive = activeSegment === index;
     
-    const intensityWidth = item.intensity === "low" ? 33 : item.intensity === "medium" ? 66 : 100;
+    const intensityWidth = item.percentage;
     
     return React.createElement(
       "div",
@@ -633,7 +607,7 @@ function EmotionAnalysis() {
               { key: "number", style: styles.segmentNumber },
               String(index + 1).padStart(2, "0")
             ),
-            createEmotionBadge(theme, item.emotion, item.intensity)
+            createEmotionBadge(theme, item.emotion, item.percentage)
           ]
         ),
         React.createElement(
@@ -660,7 +634,7 @@ function EmotionAnalysis() {
             React.createElement(
               "span",
               { key: "value", style: { ...styles.intensityText, color: "#ffffff", fontWeight: 600 } },
-              intensityScale[item.intensity].label
+              `${item.percentage.toFixed(1)}%`
             )
           ]
         )
@@ -670,45 +644,105 @@ function EmotionAnalysis() {
 
   // Create visualization bars
   const visualizationBars = results.map((item, index) => {
-    const theme = getEmotionTheme(item.emotion);
-    const isActive = activeSegment === index;
-    
-    return React.createElement(
-      "div",
-      {
-        key: index,
-        style: styles.barContainer,
-        onMouseEnter: () => setActiveSegment(index),
-        onMouseLeave: () => setActiveSegment(null)
-      },
-      [
-        React.createElement(
+  return React.createElement(
+    "div",
+    {
+      key: index,
+      style: {
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "16px",
+        padding: "1rem",
+        minWidth: "220px",
+        flex: "1"
+      }
+    },
+    [
+      React.createElement(
+        "div",
+        {
+          key: "title",
+          style: {
+            color: "#ffffff",
+            fontWeight: 700,
+            marginBottom: "0.75rem",
+            textAlign: "center"
+          }
+        },
+        `Verse ${index + 1}`
+      ),
+
+      ...(item.top3 || []).map((emo, emoIndex) => {
+        const theme = getEmotionTheme(emo.emotion);
+        return React.createElement(
           "div",
           {
-            key: "bar",
-            style: styles.emotionBar(theme, item.intensity, isActive),
-            title: `${item.emotion} - ${intensityScale[item.intensity].label} Intensity`
-          }
-        ),
-        React.createElement(
-          "div",
-          { key: "label", style: styles.barLabel },
+            key: `${index}-${emoIndex}`,
+            style: {
+              marginBottom: "0.9rem"
+            }
+          },
           [
             React.createElement(
               "div",
-              { key: "segment", style: styles.barSegment },
-              `S${index + 1}`
+              {
+                key: "labelRow",
+                style: {
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "0.35rem",
+                  fontSize: "0.85rem"
+                }
+              },
+              [
+                React.createElement(
+                  "span",
+                  {
+                    key: "emotion",
+                    style: { color: "#ffffff", fontWeight: 600 }
+                  },
+                  emo.emotion
+                ),
+                React.createElement(
+                  "span",
+                  {
+                    key: "percent",
+                    style: { color: "rgba(255,255,255,0.7)" }
+                  },
+                  `${emo.percentage.toFixed(1)}%`
+                )
+              ]
             ),
+
             React.createElement(
               "div",
-              { key: "emotion", style: styles.barEmotion },
-              item.emotion.split(" ")[0]
+              {
+                key: "barBg",
+                style: {
+                  width: "100%",
+                  height: "14px",
+                  background: "rgba(255,255,255,0.08)",
+                  borderRadius: "999px",
+                  overflow: "hidden"
+                }
+              },
+              React.createElement("div", {
+                key: "barFill",
+                style: {
+                  width: `${emo.percentage}%`,
+                  height: "100%",
+                  background: theme.gradient,
+                  borderRadius: "999px",
+                  transition: "width 0.5s ease"
+                }
+              })
             )
           ]
-        )
-      ]
-    );
-  });
+        );
+      })
+    ]
+  );
+});
 
   // Create legend items
   const legendItems = Object.entries(emotionThemes).map(([emotion, theme]) => {
@@ -728,40 +762,50 @@ function EmotionAnalysis() {
       ]
     );
   });
-
-  // Calculate insights
+// Calculate real insights from model output
   const getDominantEmotion = () => {
     if (results.length === 0) return "N/A";
+
     const emotionCounts = {};
-    results.forEach(item => {
+    results.forEach((item) => {
       emotionCounts[item.emotion] = (emotionCounts[item.emotion] || 0) + 1;
     });
-    return Object.entries(emotionCounts)
-      .sort((a, b) => b[1] - a[1])[0][0];
+
+    return Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0][0];
   };
 
-  const getIntensityPattern = () => {
-    if (results.length < 2) return "Constant";
-    const intensities = results.map(r => r.intensity);
-    const hasRise = intensities.some((val, i, arr) => i > 0 && 
-      (val === "high" && arr[i-1] === "low" || val === "high" && arr[i-1] === "medium"));
-    const hasFall = intensities.some((val, i, arr) => i > 0 && 
-      (val === "low" && arr[i-1] === "high" || val === "low" && arr[i-1] === "medium"));
-    
-    if (hasRise && hasFall) return "Dynamic";
-    if (hasRise) return "Building";
-    if (hasFall) return "Calming";
-    return "Steady";
+  const getEmotionDiversity = () => {
+    if (results.length === 0) return "0 unique emotions";
+    const uniqueCount = new Set(results.map((r) => r.emotion)).size;
+    return `${uniqueCount} unique emotions`;
   };
 
-  const getDanceComplexity = () => {
-    if (results.length === 0) return "Low";
-    const emotionTypes = new Set(results.map(r => r.emotion));
-    const hasHighIntensity = results.some(r => r.intensity === "high");
-    
-    if (emotionTypes.size > 3 && hasHighIntensity) return "High";
-    if (emotionTypes.size > 2) return "Medium";
-    return "Low";
+  const getPeakEmotionalVerse = () => {
+    if (results.length === 0) return "N/A";
+
+    let peakIndex = 0;
+    for (let i = 1; i < results.length; i++) {
+      if ((results[i].percentage || 0) > (results[peakIndex].percentage || 0)) {
+        peakIndex = i;
+      }
+    }
+
+    return `Verse ${peakIndex + 1} (${results[peakIndex].emotion}, ${results[peakIndex].percentage.toFixed(1)}%)`;
+  };
+
+  const getMostCommonTransition = () => {
+    if (results.length < 2) return "No transition";
+
+    const transitionCounts = {};
+
+    for (let i = 0; i < results.length - 1; i++) {
+      const transition = `${results[i].emotion} → ${results[i + 1].emotion}`;
+      transitionCounts[transition] = (transitionCounts[transition] || 0) + 1;
+    }
+
+    const topTransition = Object.entries(transitionCounts).sort((a, b) => b[1] - a[1])[0];
+
+    return topTransition ? topTransition[0] : "No transition";
   };
 
   return React.createElement(
@@ -905,7 +949,7 @@ function EmotionAnalysis() {
                     React.createElement(
                       "p",
                       { key: "description", style: styles.visualizationDescription },
-                      "Visual trajectory showing emotional intensity throughout the song, perfect for choreography planning"
+                      "Each verse shows the top 3 predicted emotions throughout the song, perfect for planning your dance choreography flow and transitions between different emotional beats."
                     )
                   ]
                 ),
@@ -953,18 +997,26 @@ function EmotionAnalysis() {
                     ),
                     React.createElement(
                       "div",
-                      { key: "pattern", style: styles.insightCard },
+                      { key: "diversity", style: styles.insightCard },
                       [
-                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Intensity Pattern"),
-                        React.createElement("div", { key: "content", style: styles.insightContent }, getIntensityPattern())
+                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Emotion Diversity"),
+                        React.createElement("div", { key: "content", style: styles.insightContent }, getEmotionDiversity())
                       ]
                     ),
                     React.createElement(
                       "div",
-                      { key: "complexity", style: styles.insightCard },
+                      { key: "peak", style: styles.insightCard },
                       [
-                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Dance Complexity"),
-                        React.createElement("div", { key: "content", style: styles.insightContent }, getDanceComplexity())
+                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Peak Emotional Verse"),
+                        React.createElement("div", { key: "content", style: styles.insightContent }, getPeakEmotionalVerse())
+                      ]
+                    ),
+                    React.createElement(
+                      "div",
+                      { key: "transition", style: styles.insightCard },
+                      [
+                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Most Common Transition"),
+                        React.createElement("div", { key: "content", style: styles.insightContent }, getMostCommonTransition())
                       ]
                     )
                   ]
