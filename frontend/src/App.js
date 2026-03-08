@@ -8,6 +8,8 @@ import Page1 from './pages/Page1';
 import Page2 from './pages/Page2';
 import Page3 from './pages/Page3';
 import Page4 from './pages/Page4';
+import AdminPortal from './pages/AdminPortal';
+import SearchPage from './pages/SearchPage';
 
 function Navigation() {
   const location = useLocation();
@@ -29,13 +31,13 @@ function Navigation() {
           </Link>
         </li>
         <li>
-          <Link to="/page1" className={location.pathname === '/page1' ? 'active' : ''}>
-            Page 1
+          <Link to="/search" className={location.pathname === '/search' ? 'active' : ''}>
+            AI Search
           </Link>
         </li>
         <li>
-          <Link to="/page2" className={location.pathname === '/page2' ? 'active' : ''}>
-            Page 2
+          <Link to="/admin" className={location.pathname === '/admin' ? 'active' : ''}>
+            Admin Portal
           </Link>
         </li>
         <li>
@@ -63,8 +65,8 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/archive" element={<DigitalArchive />} />
             <Route path="/library" element={<Library />} />
-            <Route path="/page1" element={<Page1 />} />
-            <Route path="/page2" element={<Page2 />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/admin" element={<AdminPortal />} />
             <Route path="/page3" element={<Page3 />} />
             <Route path="/page4" element={<Page4 />} />
           </Routes>

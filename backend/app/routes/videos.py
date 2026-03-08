@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import json
 import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+import time
 from pathlib import Path
 import google.generativeai as genai
 from dotenv import load_dotenv
+from app.database.mongodb import videos_collection
 
 # Get the backend directory (parent of app directory)
 BACKEND_DIR = Path(__file__).parent.parent.parent
@@ -30,31 +33,36 @@ class SearchQuery(BaseModel):
     query: str
 
 
-def load_metadata():
-    """Load video metadata from JSON file"""
-    try:
-        with open(METADATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
+import numpy as np
 
+def cosine_similarity(a, b):
+    # a and b are lists/arrays of floats
+    a_norm = np.linalg.norm(a)
+    b_norm = np.linalg.norm(b)
+    if a_norm == 0 or b_norm == 0:
+        return 0.0
+    return float(np.dot(a, b) / (a_norm * b_norm))
 
 @router.get("/")
 async def list_videos():
-    """Get list of all videos with metadata"""
-    metadata = load_metadata()
+    """Get list of all videos with metadata from MongoDB"""
     videos = []
+    cursor = videos_collection.find().sort("created_at", -1)
     
-    for item in metadata:
+    for item in cursor:
         video_path = VIDEOS_DIR / item["filename"]
         if video_path.exists():
             videos.append({
-                "filename": item["filename"],
+                "filename": item.get("filename"),
                 "label": item.get("label", ""),
                 "type": item.get("type", ""),
+                "beat": item.get("beat", ""),
+                "energy": item.get("energy", ""),
+                "expression": item.get("expression", ""),
+                "emotion": item.get("emotion", ""),
                 "description": item.get("description", ""),
                 "fullDescription": item.get("fullDescription", ""),
-                "url": f"/api/videos/stream/{item['filename']}"
+                "url": item.get("url", f"/api/videos/stream/{item.get('filename')}")
             })
     
     return {"videos": videos}
@@ -70,202 +78,241 @@ async def stream_video(filename: str):
     
     return FileResponse(
         path=str(video_path),
-        media_type="video/mp4",
-        filename=filename
+        media_type="video/mp4"
     )
+
+
+@router.post("/upload")
+async def upload_video(file: UploadFile = File(...)):
+    """Upload a video, process with Gemini 2.0 Flash, and store in MongoDB"""
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="Gemini API key not configured")
+
+    filename = file.filename
+    video_path = VIDEOS_DIR / filename
+    
+    # Save the file temporarily
+    try:
+        with open(video_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    try:
+        # 1. Upload to Gemini
+        print(f"Uploading {filename} to Gemini...")
+        gemini_file = genai.upload_file(path=str(video_path))
+        
+        # Wait for processing to complete
+        while gemini_file.state.name == "PROCESSING":
+            print(".", end="", flush=True)
+            time.sleep(5)
+            gemini_file = genai.get_file(gemini_file.name)
+            
+        if gemini_file.state.name == "FAILED":
+            raise HTTPException(status_code=500, detail="Gemini video processing failed")
+
+        print("\nVideo processing active. Generating description...")
+        
+        # 2. Extract description & keywords using gemini-2.0-flash
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = f"""You are a Sri Lankan dance expert analyzer. Watch this video and categorize it.
+Ensure you return ONLY a strict JSON object with these exact keys:
+{{
+  "label": "string (e.g., Up-Country Traditional Dance, Hip Hop Dance, Pahatharata Traditional Dance, Contemporary Dance)",
+  "type": "string (e.g., Sinhala Traditional Drum Song, Sinhala Folk Song with Drum Beats)",
+  "beat": "string (e.g., fast drum-driven beat, medium rhythmic beat, slow graceful beat)",
+  "energy": "string (e.g., high energy, moderate energy, calm energy)",
+  "expression": "string (Describe visible facial and body expression, e.g., joyful and confident, devotional and focused, dramatic and intense)",
+  "emotion": "string (Main emotional tone, e.g., happy, sad, proud, devotional, playful, intense)",
+  "description": "string (A detailed 1-sentence description of what happens in the video, mentioning performers, energy, style, and beats)",
+  "fullDescription": "string (Combines filename / label / type / beat / energy / expression / emotion — description)"
+}}
+
+Examples of expected format based on our metadata:
+- "label": "Up-Country Traditional Dance", "type": "Sinhala Traditional Drum Song", "beat": "fast drum-driven beat", "energy": "high energy", "expression": "proud and commanding", "emotion": "excited", "description": "Male and female performers present an authentic Udarata dance featuring traditional steps high energy beats and powerful drum driven rhythms", "fullDescription": "Udarata Rhythms / Up-Country Traditional Dance / Sinhala Traditional Drum Song / fast drum-driven beat / high energy / proud and commanding / excited — Male and female performers..."
+- "label": "Pahatharata Traditional Dance", "type": "Sinhala Pahatharata Song", "beat": "slow rhythmic beat", "energy": "moderate energy", "expression": "graceful and soft", "emotion": "serene", "description": "Solo female performance highlighting graceful girly movements expressed through slow rhythmic beats rooted in Pahatharata tradition"
+- "label": "Hip Hop Dance", "type": "Swag Song", "beat": "punchy syncopated beat", "energy": "high energy", "expression": "bold and swagger-filled", "emotion": "confident", "description": "Trio male performance delivering energetic hip hop steps with strong swag attitude sharp movements and high intensity execution"
+
+Analyze the video and return the JSON. Infer beat, energy, expression, and emotion from movement quality, rhythm, and visible performance mood. Use concise natural language. Use the filename as the source for the first part of 'fullDescription'. Filename is: {filename}"""
+
+        response = model.generate_content([gemini_file, prompt])
+        response_text = response.text.strip()
+        
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+            
+        metadata_json = json.loads(response_text)
+        metadata_json['filename'] = filename
+        
+        # 3. Generate Embeddings using gemini-embedding-001
+        print("Generating embeddings...")
+        embedding_response = genai.embed_content(
+            model="models/gemini-embedding-001",
+            content=metadata_json['fullDescription'],
+            task_type="retrieval_document"
+        )
+        embedding_vector = embedding_response['embedding']
+        
+        # 4. Save to MongoDB
+        document = {
+            "filename": filename,
+            "label": metadata_json.get('label', ''),
+            "type": metadata_json.get('type', ''),
+            "beat": metadata_json.get('beat', ''),
+            "energy": metadata_json.get('energy', ''),
+            "expression": metadata_json.get('expression', ''),
+            "emotion": metadata_json.get('emotion', ''),
+            "description": metadata_json.get('description', ''),
+            "fullDescription": metadata_json.get('fullDescription', ''),
+            "embedding": embedding_vector,
+            "url": f"/api/videos/stream/{filename}",
+            "created_at": time.time()
+        }
+        
+        # Upsert by filename
+        videos_collection.update_one(
+            {"filename": filename},
+            {"$set": document},
+            upsert=True
+        )
+        
+        print("Successfully processed and saved to MongoDB.")
+        return {"message": "Upload & processing successful", "data": document}
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse Gemini JSON: {str(e)} - Raw: {response.text}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/search")
 async def search_videos(search_query: SearchQuery):
-    """AI-powered video search using Gemini"""
+    """AI-powered video search using Gemini embeddings and MongoDB"""
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Gemini API key not configured")
     
-    metadata = load_metadata()
+    query = search_query.query
     
-    if not metadata:
+    # 1. Generate embedding for the search query
+    try:
+        query_embedding_response = genai.embed_content(
+            model="models/gemini-embedding-001",
+            content=query,
+            task_type="retrieval_query"
+        )
+        query_vector = query_embedding_response['embedding']
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate query embedding: {str(e)}")
+
+    # 2. Fetch all videos and calculate similarity
+    all_videos = list(videos_collection.find())
+    if not all_videos:
         return {
             "matches": [],
             "explanation": "No videos available in the archive.",
             "musicRecommendations": []
         }
     
-    # Filter by dance tradition if specified in query
-    query_lower = search_query.query.lower()
-    filtered_metadata = metadata.copy()
-    tradition_filter_applied = False
+    results = []
+    for video in all_videos:
+        video_vector = video.get("embedding")
+        if not video_vector:
+            continue
+            
+        score = cosine_similarity(query_vector, video_vector)
+        
+        # Boost score slightly if exact filename match (case insensitive)
+        filename_without_ext = video.get('filename', '').replace('.mp4', '').lower()
+        if query.lower() == filename_without_ext or query.lower() in filename_without_ext:
+            score += 0.2
+            
+        results.append({
+            "score": score,
+            "video": video
+        })
+        
+    # Sort by score descending
+    results.sort(key=lambda x: x["score"], reverse=True)
     
-    # Check if query mentions a specific dance tradition
-    if "pahatharata" in query_lower or "low country" in query_lower:
-        filtered_metadata = [
-            item for item in metadata
-            if "pahatharata" in item.get("label", "").lower() or 
-               "pahatharata" in item.get("fullDescription", "").lower() or
-               "low country" in item.get("label", "").lower()
-        ]
-        tradition_filter_applied = True
-    elif "udarata" in query_lower or "up country" in query_lower or "up-country" in query_lower:
-        filtered_metadata = [
-            item for item in metadata
-            if "udarata" in item.get("label", "").lower() or 
-               "udarata" in item.get("fullDescription", "").lower() or
-               "up country" in item.get("label", "").lower() or
-               "up-country" in item.get("label", "").lower()
-        ]
-        tradition_filter_applied = True
-    elif "bharatanatyam" in query_lower:
-        filtered_metadata = [
-            item for item in metadata
-            if "bharatanatyam" in item.get("label", "").lower() or 
-               "bharatanatyam" in item.get("fullDescription", "").lower()
-        ]
-        tradition_filter_applied = True
+    # Get Top 8 matches (or fewer if less available)
+    top_matches = results[:8]
     
-    # Use filtered metadata if filter was applied
-    metadata_to_search = filtered_metadata if tradition_filter_applied else metadata
-    
-    # Create mapping from filtered index to original index
-    if tradition_filter_applied:
-        index_mapping = {i: metadata.index(item) for i, item in enumerate(metadata_to_search)}
-    else:
-        index_mapping = {i: i for i in range(len(metadata_to_search))}
-    
-    # Prepare video descriptions for Gemini
-    video_context = "\n\n".join([
-        f"Video {i+1}: {item['fullDescription']}"
-        for i, item in enumerate(metadata_to_search)
-    ])
-    
-    # Create prompt for Gemini (using filtered metadata)
-    query_keywords = search_query.query.lower().split()
-    query_lower = search_query.query.lower()
-    
-    # Check for exact filename match
-    exact_filename_match = None
-    for i, item in enumerate(metadata_to_search):
-        filename_without_ext = item['filename'].replace('.mp4', '').lower()
-        if query_lower == filename_without_ext or query_lower in filename_without_ext:
-            exact_filename_match = i
-            break
-    
-    prompt = f"""You are a dance archive search assistant. A user is searching for: "{search_query.query}"
-
-Available videos in the archive (remember: Video 1 = index 0, Video 2 = index 1, etc.):
-{video_context}
-
-CRITICAL: The user's query is: "{search_query.query}"
-{f'IMPORTANT: Video {exact_filename_match + 1} (index {exact_filename_match}) has a filename that EXACTLY matches the query. This video MUST be included and ranked FIRST.' if exact_filename_match is not None else ''}
-
-Analyze the user's query and match videos based on these criteria (in order of importance):
-1. EXACT FILENAME MATCH (HIGHEST PRIORITY):
-   - If the query exactly matches or is very close to a video's filename (without .mp4), that video MUST be ranked FIRST
-   - Example: Query "Pahatharata Fusion Dance" should rank "Pahatharata Fusion Dance.mp4" video as #1
-2. KEYWORD MATCHING:
-   - Videos with MORE matching keywords from the query should rank HIGHER
-   - Count how many words from the query appear in the video's filename, label, or description
-3. Key characteristics matching (fusion, solo, graceful, powerful, traditional, etc.)
-4. Performance type (solo, duet, male, female)
-5. Energy level (fast/slow, high/low energy)
-
-MATCHING RULES:
-- EXACT FILENAME MATCHES ALWAYS RANK FIRST
-- COUNT matching keywords: Videos matching more keywords from the query should be ranked higher
-- Video indices are 0-based: Video 1 = 0, Video 2 = 1, etc. (current video is Video {len(metadata_to_search)} = index {len(metadata_to_search)-1})
-- Return ALL relevant videos (2-8 videos), ordered by relevance score (highest matches first)
-- Order matters: Put videos with exact filename matches first, then videos with the most keyword matches
-
-Provide a JSON response with this exact structure (no extra text):
-{{
-    "matched_video_indices": [0, 1, 2],
-    "explanation": "Detailed explanation...",
-    "choreography_suggestions": "Suggestions..."
-}}
-
-Return valid JSON only. Video indices must be numbers between 0 and {len(metadata_to_search)-1}. Order the indices by relevance (exact filename matches first, then most keyword matches).
-"""
-    
-    response_text = ""
+    matched_videos = []
+    for match in top_matches:
+        item = match["video"]
+        video_path = VIDEOS_DIR / item["filename"]
+        if video_path.exists():
+            matched_videos.append({
+                "filename": item.get("filename"),
+                "label": item.get("label", ""),
+                "type": item.get("type", ""),
+                "beat": item.get("beat", ""),
+                "energy": item.get("energy", ""),
+                "expression": item.get("expression", ""),
+                "emotion": item.get("emotion", ""),
+                "description": item.get("description", ""),
+                "fullDescription": item.get("fullDescription", ""),
+                "url": item.get("url", f"/api/videos/stream/{item.get('filename')}"),
+                "similarityScore": round(match["score"], 3)
+            })
+            
+    # 3. Use Gemini to generate an explanation and music recommendations based on the top matches
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
         
-        # Parse Gemini response
+        video_context = "\\n\\n".join([
+            f"Video: {item['filename']} - {item['fullDescription']}"
+            for item in matched_videos
+        ])
+        
+        explanation_prompt = f"""
+The user searched for "{query}". We found the following top matching videos from our database:
+{video_context}
+
+Briefly explain (in 1-2 paragraphs) why these videos are great matches for their query, acting as a helpful dance archive assistant. 
+Also provide a few short choreography suggestions based on these styles.
+
+Return ONLY a strict JSON object with this shape:
+{{
+  "explanation": "string",
+  "choreography_suggestions": "string",
+  "music_recommendations": [
+    {{
+       "title": "string",
+       "artist": "string",
+       "description": "string",
+       "style": "string"
+    }}
+  ]
+}}
+"""
+        response = model.generate_content(explanation_prompt)
         response_text = response.text.strip()
         
-        # Extract JSON from response (Gemini might add markdown formatting)
         if "```json" in response_text:
             response_text = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:
             response_text = response_text.split("```")[1].split("```")[0].strip()
+            
+        response_json = json.loads(response_text)
+        explanation = response_json.get("explanation", "Here are the top matches we found for your query.")
+        choreography_suggestions = response_json.get("choreography_suggestions", "")
+        music_recommendations = response_json.get("music_recommendations", [])
         
-        result = json.loads(response_text)
-        
-        # Get matched videos (indices are relative to metadata_to_search)
-        matched_indices = result.get("matched_video_indices", [])
-        matched_videos = []
-        
-        for idx in matched_indices:
-            # idx is relative to metadata_to_search, convert to original metadata index if needed
-            if 0 <= idx < len(metadata_to_search):
-                original_idx = index_mapping[idx]
-                item = metadata[original_idx]
-                video_path = VIDEOS_DIR / item["filename"]
-                if video_path.exists():
-                    matched_videos.append({
-                        "filename": item["filename"],
-                        "label": item.get("label", ""),
-                        "type": item.get("type", ""),
-                        "description": item.get("description", ""),
-                        "fullDescription": item.get("fullDescription", ""),
-                        "url": f"/api/videos/stream/{item['filename']}"
-                    })
-        
-        explanation = result.get("explanation", "")
-        choreography_suggestions = result.get("choreography_suggestions", "")
-        
-        # Get music recommendations using Gemini
-        music_prompt = f"""Based on these matched dance videos and the user's search query "{search_query.query}", recommend 3-5 traditional Sri Lankan songs or music tracks that would be suitable for this type of choreography. 
-
-Matched videos context: {explanation}
-
-Provide a JSON array of music recommendations:
-{{
-    "music_recommendations": [
-        {{
-            "title": "Song title",
-            "artist": "Artist name (if known)",
-            "description": "Why this music fits",
-            "style": "Music style/tradition"
-        }}
-    ]
-}}
-"""
-        
-        music_response = model.generate_content(music_prompt)
-        music_text = music_response.text.strip()
-        
-        if "```json" in music_text:
-            music_text = music_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in music_text:
-            music_text = music_text.split("```")[1].split("```")[0].strip()
-        
-        music_data = json.loads(music_text)
-        music_recommendations = music_data.get("music_recommendations", [])
-        
-        return {
-            "matches": matched_videos,
-            "explanation": explanation,
-            "choreography_suggestions": choreography_suggestions,
-            "musicRecommendations": music_recommendations
-        }
-    
-    except json.JSONDecodeError as e:
-        # Fallback if JSON parsing fails
-        return {
-            "matches": [],
-            "explanation": f"Search completed but response parsing failed. Please try a different search query.",
-            "musicRecommendations": []
-        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+        print(f"Error generating explanation: {e}")
+        explanation = "Here are the best matches for your search query based on semantic similarity."
+        choreography_suggestions = ""
+        music_recommendations = []
 
+    return {
+        "matches": matched_videos,
+        "explanation": explanation,
+        "choreography_suggestions": choreography_suggestions,
+        "musicRecommendations": music_recommendations
+    }
