@@ -10,63 +10,72 @@ const emotionNameMap = {
   Bhayanakam: "Fearful",
   Bhibatsa: "Disgust",
   Adbhutha: "Wonder",
-  Shantha: "Peaceful"
+  Shantha: "Peaceful",
+  Unknown: "Unknown",
+  ModelUnavailable: "Model Unavailable"
 };
 
 const emotionThemes = {
-  happy: { 
+  happy: {
     gradient: "linear-gradient(135deg, #FFD700 0%, #FFB347 100%)",
     light: "rgba(255, 215, 0, 0.1)",
     border: "rgba(255, 215, 0, 0.3)"
   },
-  sad: { 
+  sad: {
     gradient: "linear-gradient(135deg, #4A90E2 0%, #2C6FB7 100%)",
     light: "rgba(74, 144, 226, 0.1)",
     border: "rgba(74, 144, 226, 0.3)"
   },
-  romantic: { 
+  romantic: {
     gradient: "linear-gradient(135deg, #FF6B95 0%, #FF4D7E 100%)",
     light: "rgba(255, 107, 149, 0.1)",
     border: "rgba(255, 107, 149, 0.3)"
   },
-  angry: { 
+  angry: {
     gradient: "linear-gradient(135deg, #FF4757 0%, #FF1744 100%)",
     light: "rgba(255, 71, 87, 0.1)",
     border: "rgba(255, 71, 87, 0.3)"
   },
-  peaceful: { 
+  peaceful: {
     gradient: "linear-gradient(135deg, #2ED573 0%, #1DB954 100%)",
     light: "rgba(46, 213, 115, 0.1)",
     border: "rgba(46, 213, 115, 0.3)"
   },
-  energetic: { 
+  energetic: {
     gradient: "linear-gradient(135deg, #FF7F50 0%, #FF5722 100%)",
     light: "rgba(255, 127, 80, 0.1)",
     border: "rgba(255, 127, 80, 0.3)"
   },
-  nostalgic: { 
+  nostalgic: {
     gradient: "linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)",
     light: "rgba(155, 89, 182, 0.1)",
     border: "rgba(155, 89, 182, 0.3)"
   },
-  default: { 
+  default: {
     gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     light: "rgba(102, 126, 234, 0.1)",
     border: "rgba(102, 126, 234, 0.3)"
   }
 };
 
+const sampleLyrics = `මගේ හිත දුකෙන් පිරීලා
+ඔබ නැති ලෝකය නිහඬ වෙලා
+
+සඳ එළිය මැකී ගියා
+මතකය පමණක් ඉතිරි වෙලා`;
+
 function EmotionAnalysis() {
   const [lyrics, setLyrics] = useState("");
+  const [language, setLanguage] = useState("Unknown");
+  const [prepared, setPrepared] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeSegment, setActiveSegment] = useState(null);
 
-  // Inject CSS animations
   useEffect(() => {
-    const styleId = 'emotion-analysis-styles';
+    const styleId = "emotion-analysis-styles";
     if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
+      const style = document.createElement("style");
       style.id = styleId;
       style.textContent = `
         @keyframes spin {
@@ -84,6 +93,105 @@ function EmotionAnalysis() {
       document.head.appendChild(style);
     }
   }, []);
+
+  const countSinhalaChars = (text) => (text.match(/[\u0D80-\u0DFF]/g) || []).length;
+  const countEnglishChars = (text) => (text.match(/[A-Za-z]/g) || []).length;
+
+  const detectLanguage = (text) => {
+    const si = countSinhalaChars(text);
+    const en = countEnglishChars(text);
+
+    if (si === 0 && en === 0) return "Unknown";
+    if (si > 0 && en === 0) return "Sinhala";
+    if (en > 0 && si === 0) return "English";
+
+    const total = si + en;
+    const siRatio = si / total;
+    const enRatio = en / total;
+
+    if (siRatio > 0.75) return "Mostly Sinhala";
+    if (enRatio > 0.75) return "Mostly English";
+    return "Mixed";
+  };
+
+  const getLanguageMessage = (lang) => {
+    if (lang === "Sinhala") return "Sinhala lyrics detected. This will use your trained Sinhala emotion model when GPU backend is connected.";
+    if (lang === "English") return "English lyrics detected. This will be processed using Mistral AI.";
+    if (lang === "Mixed") return "Mixed language detected. Sinhala will use your model and English will use Mistral AI.";
+    if (lang === "Mostly Sinhala") return "Mostly Sinhala detected. Non-Sinhala parts will be handled carefully.";
+    if (lang === "Mostly English") return "Mostly English detected. This will be processed using Mistral AI.";
+    return "No clear lyrics detected.";
+  };
+
+  const removeEmojisAndNoise = (text) => {
+    return text
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/www\.\S+/g, "")
+      .replace(/[^\u0D80-\u0DFFA-Za-z0-9\s.,!?;:'"()\-—–\n]/g, "")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  const splitSmartVerses = (text) => {
+    const s = (text || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .trim();
+
+    if (!s) return [];
+
+    if (/\n\s*\n/.test(s)) {
+      return s
+        .split(/\n\s*\n+/)
+        .map((block) =>
+          block
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .join("\n")
+        )
+        .filter(Boolean);
+    }
+
+    const lines = s
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const verses = [];
+    for (let i = 0; i < lines.length; i += 4) {
+      verses.push(lines.slice(i, i + 4).join("\n"));
+    }
+
+    return verses;
+  };
+
+  const removeDuplicates = (verses) => {
+    const seen = new Set();
+    const unique = [];
+    let duplicateCount = 0;
+
+    verses.forEach((v) => {
+      const key = v.toLowerCase().replace(/\s+/g, " ").trim();
+      if (seen.has(key)) {
+        duplicateCount++;
+      } else {
+        seen.add(key);
+        unique.push(v);
+      }
+    });
+
+    return { unique, duplicateCount };
+  };
+
+  const getInputQuality = (verses, lang) => {
+    if (!verses.length) return "Poor";
+    if (lang === "Unknown") return "Poor";
+    if (verses.length < 2) return "Fair";
+    if (verses.length >= 2 && verses.length <= 40) return "Good";
+    return "Review Needed";
+  };
 
   const segmentLyrics = (text) => {
     return text
@@ -112,21 +220,61 @@ function EmotionAnalysis() {
     return emotionThemes.default;
   };
 
+  const handlePrepareLyrics = () => {
+    if (!lyrics.trim()) {
+      alert("Please enter lyrics first.");
+      return;
+    }
+
+    const originalLanguage = detectLanguage(lyrics);
+    const cleanedText = removeEmojisAndNoise(lyrics);
+    const cleanedLanguage = detectLanguage(cleanedText);
+
+    const rawVerses = splitSmartVerses(cleanedText);
+    const { unique, duplicateCount } = removeDuplicates(rawVerses);
+
+    const originalLineCount = lyrics.split("\n").filter((l) => l.trim()).length;
+    const removedNoise = lyrics.length - cleanedText.length;
+
+    const preparedData = {
+      originalLanguage,
+      cleanedLanguage,
+      originalLineCount,
+      verseCount: unique.length,
+      duplicateCount,
+      removedNoise: removedNoise > 0 ? removedNoise : 0,
+      quality: getInputQuality(unique, cleanedLanguage),
+      cleanedText: unique.join("\n\n"),
+      verses: unique,
+      warning: getLanguageMessage(cleanedLanguage)
+    };
+
+    setPrepared(preparedData);
+    setResults([]);
+  };
+
   const handleAnalyzeSong = async () => {
-    if (!lyrics.trim()) return;
+    if (!prepared) {
+      alert("Please click Prepare Lyrics first.");
+      return;
+    }
+
+    const textToAnalyze = prepared.cleanedText;
+
+    if (!textToAnalyze.trim()) return;
 
     setLoading(true);
     setResults([]);
 
     try {
-      // ✅ ONE request: backend splits verses and returns verse-wise emotions
-      const verseResults = await analyzeSongVerses(lyrics);
+      const verseResults = await analyzeSongVerses(textToAnalyze);
 
       const analysisResults = verseResults.map((r) => ({
         segment: r.verse,
         emotion: r.emotion,
-        percentage: r.percentage,
-        top3: r.top3
+        percentage: Number(r.percentage || 0),
+        top3: r.top3 || [],
+        language: r.language || "Unknown"
       }));
 
       setResults(analysisResults);
@@ -138,7 +286,11 @@ function EmotionAnalysis() {
     }
   };
 
-  // Main Styles
+  const canAnalyze =
+    prepared &&
+    prepared.verseCount > 0 &&
+    prepared.cleanedLanguage !== "Unknown";
+
   const styles = {
     mainContent: {
       flex: 1,
@@ -173,7 +325,7 @@ function EmotionAnalysis() {
     dashboardSubtitle: {
       color: "rgba(255, 255, 255, 0.6)",
       fontSize: "1.2rem",
-      maxWidth: "600px",
+      maxWidth: "760px",
       margin: "0 auto",
       lineHeight: "1.6"
     },
@@ -239,35 +391,67 @@ function EmotionAnalysis() {
       color: "#ffffff",
       fontFamily: "inherit",
       resize: "vertical",
-      minHeight: "150px",
+      minHeight: "180px",
       transition: "all 0.3s ease"
     },
-    textareaFocus: {
-      outline: "none",
-      borderColor: "rgba(255, 107, 157, 0.5)",
-      background: "rgba(255, 255, 255, 0.08)",
-      boxShadow: "0 0 0 4px rgba(255, 107, 157, 0.1)"
+    liveInfo: {
+      marginTop: "0.8rem",
+      padding: "0.9rem 1rem",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: "14px",
+      color: "rgba(255,255,255,0.78)"
     },
-    analyzeButton: {
-      padding: "1.2rem 2.5rem",
+    languageBadge: {
+      display: "inline-block",
+      marginLeft: "0.5rem",
+      padding: "0.25rem 0.7rem",
+      background: "rgba(255,107,157,0.18)",
+      border: "1px solid rgba(255,107,157,0.35)",
+      color: "#fff",
+      borderRadius: "999px",
+      fontWeight: 700
+    },
+    buttonRow: {
+      display: "flex",
+      gap: "1rem",
+      flexWrap: "wrap",
+      marginTop: "1.2rem"
+    },
+    primaryButton: {
+      flex: 1,
+      minWidth: "220px",
+      padding: "1.1rem 2rem",
       background: "linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)",
       color: "white",
       border: "none",
       borderRadius: "16px",
       fontSize: "1rem",
-      fontWeight: 600,
+      fontWeight: 700,
       cursor: "pointer",
       transition: "all 0.3s ease",
       boxShadow: "0 4px 15px rgba(255, 107, 157, 0.4)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      gap: "0.5rem",
-      width: "100%"
+      gap: "0.5rem"
     },
-    buttonHover: {
-      transform: "translateY(-2px)",
-      boxShadow: "0 6px 20px rgba(255, 107, 157, 0.5)"
+    secondaryButton: {
+      flex: 1,
+      minWidth: "180px",
+      padding: "1.1rem 2rem",
+      background: "rgba(255,255,255,0.08)",
+      color: "#ffffff",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: "16px",
+      fontSize: "1rem",
+      fontWeight: 700,
+      cursor: "pointer",
+      transition: "all 0.3s ease"
+    },
+    disabledBtn: {
+      opacity: 0.5,
+      cursor: "not-allowed"
     },
     loadingSpinner: {
       width: "20px",
@@ -276,6 +460,63 @@ function EmotionAnalysis() {
       borderRadius: "50%",
       borderTopColor: "white",
       animation: "spin 1s linear infinite"
+    },
+    preparedSection: {
+      background: "rgba(20, 20, 30, 0.6)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      border: "1px solid rgba(255, 255, 255, 0.1)",
+      borderRadius: "24px",
+      padding: "2.5rem",
+      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)"
+    },
+    reportGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+      gap: "1rem",
+      marginBottom: "1.5rem"
+    },
+    reportBox: {
+      background: "rgba(255,255,255,0.05)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: "16px",
+      padding: "1rem"
+    },
+    reportLabel: {
+      color: "rgba(255,255,255,0.55)",
+      fontSize: "0.8rem",
+      textTransform: "uppercase"
+    },
+    reportValue: {
+      color: "#fff",
+      fontSize: "1.3rem",
+      fontWeight: 700,
+      marginTop: "0.4rem"
+    },
+    warning: {
+      background: "rgba(255,165,0,0.12)",
+      border: "1px solid rgba(255,165,0,0.35)",
+      color: "#ffcc80",
+      padding: "1rem",
+      borderRadius: "14px",
+      marginBottom: "1rem"
+    },
+    versePreview: {
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: "16px",
+      padding: "1rem",
+      maxHeight: "300px",
+      overflowY: "auto"
+    },
+    verseItem: {
+      padding: "0.9rem",
+      marginBottom: "0.8rem",
+      background: "rgba(255,255,255,0.05)",
+      borderRadius: "12px",
+      color: "rgba(255,255,255,0.85)",
+      lineHeight: 1.6,
+      whiteSpace: "pre-line"
     },
     resultsSection: {
       background: "rgba(20, 20, 30, 0.6)",
@@ -290,11 +531,14 @@ function EmotionAnalysis() {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "2rem"
+      marginBottom: "2rem",
+      flexWrap: "wrap",
+      gap: "1rem"
     },
     statsContainer: {
       display: "flex",
-      gap: "2rem"
+      gap: "2rem",
+      flexWrap: "wrap"
     },
     statItem: {
       textAlign: "center"
@@ -364,14 +608,24 @@ function EmotionAnalysis() {
       alignItems: "center",
       gap: "0.5rem"
     }),
+    languageSmallBadge: {
+      marginLeft: "0.5rem",
+      padding: "0.25rem 0.55rem",
+      background: "rgba(168,216,234,0.12)",
+      border: "1px solid rgba(168,216,234,0.25)",
+      borderRadius: "999px",
+      color: "#a8d8ea",
+      fontSize: "0.75rem",
+      fontWeight: 700
+    },
     segmentText: {
       color: "rgba(255, 255, 255, 0.8)",
       fontSize: "0.95rem",
       lineHeight: "1.6",
       marginBottom: "1rem",
-      fontStyle: "italic"
+      fontStyle: "italic",
+      whiteSpace: "pre-line"
     },
-         
     visualizationSection: {
       background: "rgba(20, 20, 30, 0.6)",
       backdropFilter: "blur(20px)",
@@ -397,8 +651,8 @@ function EmotionAnalysis() {
     },
     chartContainer: {
       position: "relative",
-      minHeight: "520px",
-      padding: "2rem 0 4rem 0"
+      minHeight: "420px",
+      padding: "2rem 0 3rem 0"
     },
     chartLine: {
       position: "absolute",
@@ -424,16 +678,6 @@ function EmotionAnalysis() {
       flex: 1,
       maxWidth: "60px"
     },
-    emotionBar: (theme, intensity, isActive) => ({
-      width: "40px",
-      height: `${intensityScale[intensity].height}px`,
-      background: theme.gradient,
-      borderRadius: "8px 8px 0 0",
-      transition: "all 0.3s ease",
-      cursor: "pointer",
-      transform: isActive ? "scale(1.05)" : "scale(1)",
-      boxShadow: isActive ? `0 10px 30px ${theme.border}` : "0 5px 15px rgba(0, 0, 0, 0.2)"
-    }),
     barLabel: {
       marginTop: "0.75rem",
       textAlign: "center"
@@ -517,90 +761,36 @@ function EmotionAnalysis() {
     }
   };
 
-  // Helper functions
   const createEmotionBadge = (theme, emotion, percentage) => {
-  return React.createElement(
-    "div",
-    {
-      style: styles.emotionBadge(theme)
-    },
-    [
-      React.createElement(
-        "span",
-        { key: "emotion", style: { fontWeight: 700 } },
-        emotion
-      ),
-      React.createElement(
-        "span",
-        {
-          key: "percent",
-          style: { marginLeft: "6px", opacity: 0.85 }
-        },
-        `${percentage.toFixed(1)}%`
-      )
-    ]
-  );
-};
+    const safePercentage = Number(percentage || 0);
 
-  // Create textarea element
-  const textarea = React.createElement("textarea", {
-    rows: 10,
-    style: styles.textarea,
-    placeholder: "Enter your Sinhala song lyrics here...\n\nExample:\nමල් පැණි පිපි රෑ\nසැමදා සිහින මා\nසෙනෙහස පුරා ගිය\nසැමදා සිහින මා...",
-    value: lyrics,
-    onChange: (e) => setLyrics(e.target.value),
-    onFocus: (e) => {
-      e.target.style.outline = "none";
-      e.target.style.borderColor = "rgba(255, 107, 157, 0.5)";
-      e.target.style.background = "rgba(255, 255, 255, 0.08)";
-      e.target.style.boxShadow = "0 0 0 4px rgba(255, 107, 157, 0.1)";
-    },
-    onBlur: (e) => {
-      e.target.style.outline = "";
-      e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
-      e.target.style.background = "rgba(255, 255, 255, 0.05)";
-      e.target.style.boxShadow = "";
-    }
-  });
+    return React.createElement(
+      "div",
+      {
+        style: styles.emotionBadge(theme)
+      },
+      [
+        React.createElement(
+          "span",
+          { key: "emotion", style: { fontWeight: 700 } },
+          emotion
+        ),
+        React.createElement(
+          "span",
+          {
+            key: "percent",
+            style: { marginLeft: "6px", opacity: 0.85 }
+          },
+          `${safePercentage.toFixed(1)}%`
+        )
+      ]
+    );
+  };
 
-  // Create analyze button
-  const analyzeButton = React.createElement("button", {
-    onClick: handleAnalyzeSong,
-    disabled: loading,
-    style: {
-      ...styles.analyzeButton,
-      ...(loading ? { opacity: 0.8, cursor: "not-allowed" } : {})
-    },
-    onMouseEnter: (e) => {
-      if (!loading) {
-        e.target.style.transform = styles.buttonHover.transform;
-        e.target.style.boxShadow = styles.buttonHover.boxShadow;
-      }
-    },
-    onMouseLeave: (e) => {
-      if (!loading) {
-        e.target.style.transform = "none";
-        e.target.style.boxShadow = styles.analyzeButton.boxShadow;
-      }
-    }
-  }, loading ? [
-    React.createElement("div", {
-      key: "spinner",
-      style: styles.loadingSpinner
-    }),
-    "Analyzing Emotional Journey..."
-  ] : [
-    React.createElement("span", { key: "icon" }, "🎭"),
-    "Analyze Emotional Flow"
-  ]);
-
-  // Create segment cards
   const segmentCards = results.map((item, index) => {
     const theme = getEmotionTheme(item.emotion);
     const isActive = activeSegment === index;
-    
-    const intensityWidth = item.percentage;
-    
+
     return React.createElement(
       "div",
       {
@@ -619,7 +809,7 @@ function EmotionAnalysis() {
         onMouseLeave: (e) => {
           e.currentTarget.style.transform = "none";
           e.currentTarget.style.boxShadow = "";
-          e.currentTarget.style.borderColor = styles.segmentCard.border;
+          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
           setActiveSegment(null);
         }
       },
@@ -633,7 +823,22 @@ function EmotionAnalysis() {
               { key: "number", style: styles.segmentNumber },
               String(index + 1).padStart(2, "0")
             ),
-            createEmotionBadge(theme, getDisplayEmotion(item.emotion), item.percentage)
+            React.createElement(
+              "div",
+              {
+                key: "badges",
+                style: { display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }
+              },
+              [
+                createEmotionBadge(theme, getDisplayEmotion(item.emotion), item.percentage),
+                item.language &&
+                  React.createElement(
+                    "span",
+                    { key: "lang", style: styles.languageSmallBadge },
+                    item.language
+                  )
+              ]
+            )
           ]
         ),
         React.createElement(
@@ -641,12 +846,29 @@ function EmotionAnalysis() {
           { key: "text", style: styles.segmentText },
           `"${item.segment}"`
         ),
+        item.top3 &&
+          item.top3.length > 0 &&
+          React.createElement(
+            "div",
+            {
+              key: "top3",
+              style: { color: "rgba(255,255,255,0.65)", fontSize: "0.9rem" }
+            },
+            "Top 3: " +
+              item.top3
+                .map((t) => `${getDisplayEmotion(t.emotion)} ${Number(t.percentage || 0).toFixed(1)}%`)
+                .join(" | ")
+          )
       ]
     );
   });
 
-  // Create visualization bars (vertical bar chart: top 3 emotions per verse)
   const visualizationBars = results.map((item, index) => {
+    const top3 =
+      item.top3 && item.top3.length > 0
+        ? item.top3
+        : [{ emotion: item.emotion, percentage: item.percentage }];
+
     return React.createElement(
       "div",
       {
@@ -690,8 +912,10 @@ function EmotionAnalysis() {
               borderBottom: "1px solid rgba(255,255,255,0.12)"
             }
           },
-          (item.top3 || []).map((emo, emoIndex) => {
-            const theme = getEmotionTheme(getDisplayEmotion(emo.emotion));
+          top3.map((emo, emoIndex) => {
+            const theme = getEmotionTheme(emo.emotion);
+            const pct = Number(emo.percentage || 0);
+
             return React.createElement(
               "div",
               {
@@ -716,14 +940,14 @@ function EmotionAnalysis() {
                       fontWeight: 600
                     }
                   },
-                  `${emo.percentage.toFixed(1)}%`
+                  `${pct.toFixed(1)}%`
                 ),
                 React.createElement("div", {
                   key: "bar",
-                  title: `${getDisplayEmotion(emo.emotion)} - ${emo.percentage.toFixed(1)}%`,
+                  title: `${getDisplayEmotion(emo.emotion)} - ${pct.toFixed(1)}%`,
                   style: {
                     width: "40px",
-                    height: `${Math.max(18, emo.percentage * 1.8)}px`,
+                    height: `${Math.max(18, Math.min(180, pct * 1.8))}px`,
                     background: theme.gradient,
                     borderRadius: "10px 10px 0 0",
                     boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
@@ -753,7 +977,6 @@ function EmotionAnalysis() {
     );
   });
 
-  // Create legend items
   const legendItems = Object.entries(emotionThemes).map(([emotion, theme]) => {
     return React.createElement(
       "div",
@@ -771,7 +994,7 @@ function EmotionAnalysis() {
       ]
     );
   });
-// Calculate real insights from model output
+
   const getDominantEmotion = () => {
     if (results.length === 0) return "N/A";
 
@@ -800,7 +1023,9 @@ function EmotionAnalysis() {
       }
     }
 
-    return `Verse ${peakIndex + 1} (${getDisplayEmotion(results[peakIndex].emotion)}, ${results[peakIndex].percentage.toFixed(1)}%)`;
+    return `Verse ${peakIndex + 1} (${getDisplayEmotion(results[peakIndex].emotion)}, ${Number(
+      results[peakIndex].percentage || 0
+    ).toFixed(1)}%)`;
   };
 
   const getMostCommonTransition = () => {
@@ -809,7 +1034,9 @@ function EmotionAnalysis() {
     const transitionCounts = {};
 
     for (let i = 0; i < results.length - 1; i++) {
-      const transition = `${getDisplayEmotion(results[i].emotion)} → ${getDisplayEmotion(results[i + 1].emotion)}`;
+      const transition = `${getDisplayEmotion(results[i].emotion)} → ${getDisplayEmotion(
+        results[i + 1].emotion
+      )}`;
       transitionCounts[transition] = (transitionCounts[transition] || 0) + 1;
     }
 
@@ -825,7 +1052,6 @@ function EmotionAnalysis() {
       "div",
       { style: styles.fusionDashboard },
       [
-        // Header
         React.createElement(
           "div",
           { key: "header", style: styles.dashboardHeader },
@@ -838,17 +1064,15 @@ function EmotionAnalysis() {
             React.createElement(
               "p",
               { key: "subtitle", style: styles.dashboardSubtitle },
-              "Analyze Sinhala song emotions and visualize the perfect dance choreography journey"
+              "Prepare Sinhala or English lyrics, detect language, clean input, split verses, and visualize the emotional journey for dance choreography."
             )
           ]
         ),
 
-        // Main Content
         React.createElement(
           "div",
           { key: "content", style: styles.fusionContent },
           [
-            // Input Section
             React.createElement(
               "section",
               { key: "input", style: styles.inputSection },
@@ -864,7 +1088,7 @@ function EmotionAnalysis() {
                   React.createElement(
                     "p",
                     { key: "description", style: styles.sectionDescription },
-                    "Enter your Sinhala song lyrics below. Each line will be analyzed for emotional content to help plan your dance choreography."
+                    "Enter Sinhala or English song lyrics. Use blank lines to separate verses. If no blank lines are used, the system groups every 4 lines as one verse."
                   ),
                   React.createElement(
                     "div",
@@ -882,157 +1106,426 @@ function EmotionAnalysis() {
                           React.createElement(
                             "span",
                             { key: "count", style: styles.lineCount },
-                            `${lyrics.split('\n').filter(l => l.trim()).length} segments`
+                            `${lyrics.split("\n").filter((l) => l.trim()).length} lines`
                           )
                         ]
                       ),
-                      textarea
+                      React.createElement("textarea", {
+                        key: "textarea",
+                        rows: 10,
+                        style: styles.textarea,
+                        placeholder:
+                          "Paste song lyrics here...\n\nExample:\nමගේ හිත දුකෙන් පිරීලා\nඔබ නැති ලෝකය නිහඬ වෙලා\n\nසඳ එළිය මැකී ගියා\nමතකය පමණක් ඉතිරි වෙලා",
+                        value: lyrics,
+                        onChange: (e) => {
+                          const value = e.target.value;
+                          setLyrics(value);
+                          setLanguage(detectLanguage(value));
+                          setPrepared(null);
+                          setResults([]);
+                        },
+                        onFocus: (e) => {
+                          e.target.style.outline = "none";
+                          e.target.style.borderColor = "rgba(255, 107, 157, 0.5)";
+                          e.target.style.background = "rgba(255, 255, 255, 0.08)";
+                          e.target.style.boxShadow = "0 0 0 4px rgba(255, 107, 157, 0.1)";
+                        },
+                        onBlur: (e) => {
+                          e.target.style.outline = "";
+                          e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                          e.target.style.background = "rgba(255, 255, 255, 0.05)";
+                          e.target.style.boxShadow = "";
+                        }
+                      })
                     ]
                   ),
-                  analyzeButton
+
+                  React.createElement(
+                    "div",
+                    { key: "live-language", style: styles.liveInfo },
+                    [
+                      React.createElement("span", { key: "label" }, "Live detected language:"),
+                      React.createElement(
+                        "span",
+                        { key: "badge", style: styles.languageBadge },
+                        language
+                      ),
+                      React.createElement(
+                        "div",
+                        {
+                          key: "msg",
+                          style: { marginTop: "0.5rem", color: "rgba(255,255,255,0.6)" }
+                        },
+                        getLanguageMessage(language)
+                      )
+                    ]
+                  ),
+
+                  React.createElement(
+                    "div",
+                    { key: "buttons", style: styles.buttonRow },
+                    [
+                      React.createElement(
+                        "button",
+                        {
+                          key: "prepare",
+                          style: styles.primaryButton,
+                          onClick: handlePrepareLyrics
+                        },
+                        [
+                          React.createElement("span", { key: "icon" }, "🧹"),
+                          "Prepare Lyrics"
+                        ]
+                      ),
+
+                      React.createElement(
+                        "button",
+                        {
+                          key: "sample",
+                          style: styles.secondaryButton,
+                          onClick: () => {
+                            setLyrics(sampleLyrics);
+                            setLanguage(detectLanguage(sampleLyrics));
+                            setPrepared(null);
+                            setResults([]);
+                          }
+                        },
+                        "🎵 Try Sample"
+                      ),
+
+                      React.createElement(
+                        "button",
+                        {
+                          key: "clear",
+                          style: styles.secondaryButton,
+                          onClick: () => {
+                            setLyrics("");
+                            setLanguage("Unknown");
+                            setPrepared(null);
+                            setResults([]);
+                          }
+                        },
+                        "🗑 Clear"
+                      )
+                    ]
+                  )
                 ]
               )
             ),
 
-            // Results Section
-            results.length > 0 && React.createElement(
-              "section",
-              { key: "results", style: styles.resultsSection },
-              [
-                React.createElement(
-                  "div",
-                  { key: "header", style: styles.resultsHeader },
-                  [
-                    React.createElement(
-                      "h2",
-                      { key: "title", style: styles.sectionTitle },
-                      "Emotional Segments"
-                    ),
-                    React.createElement(
-                      "div",
-                      { key: "stats", style: styles.statsContainer },
-                      [
-                        React.createElement(
-                          "div",
-                          { key: "segments", style: styles.statItem },
-                          [
-                            React.createElement("div", { key: "number", style: styles.statNumber }, results.length),
-                            React.createElement("div", { key: "label", style: styles.statLabel }, "Segments")
-                          ]
-                        ),
-                        React.createElement(
-                          "div",
-                          { key: "emotions", style: styles.statItem },
-                          [
-                            React.createElement("div", { key: "number", style: styles.statNumber }, 
-                              new Set(results.map(r => getDisplayEmotion(r.emotion))).size
-                            ),
-                            React.createElement("div", { key: "label", style: styles.statLabel }, "Emotions")
-                          ]
-                        )
-                      ]
-                    )
-                  ]
-                ),
-                React.createElement(
-                  "div",
-                  { key: "grid", style: styles.segmentsGrid },
-                  segmentCards
-                )
-              ]
-            ),
+            prepared &&
+              React.createElement(
+                "section",
+                { key: "prepared", style: styles.preparedSection },
+                [
+                  React.createElement(
+                    "h2",
+                    { key: "title", style: styles.sectionTitle },
+                    "Input Quality Report"
+                  ),
 
-            // Visualization Section
-            results.length > 0 && React.createElement(
-              "section",
-              { key: "visualization", style: styles.visualizationSection },
-              [
-                React.createElement(
-                  "div",
-                  { key: "header", style: styles.visualizationHeader },
-                  [
-                    React.createElement(
-                      "h3",
-                      { key: "title", style: styles.visualizationTitle },
-                      "Emotional Journey Visualization"
-                    ),
-                    React.createElement(
-                      "p",
-                      { key: "description", style: styles.visualizationDescription },
-                      "Each verse shows the top 3 predicted emotions throughout the song, perfect for planning your dance choreography flow and transitions between different emotional beats."
-                    )
-                  ]
-                ),
-                React.createElement(
-                  "div",
-                  { key: "chart", style: styles.chartContainer },
-                  [
-                    React.createElement("div", { key: "line", style: styles.chartLine }),
+                  prepared.warning &&
                     React.createElement(
                       "div",
-                      { key: "bars", style: styles.barsWrapper },
-                      visualizationBars
-                    )
-                  ]
-                ),
-                React.createElement(
-                  "div",
-                  { key: "legend", style: styles.legendContainer },
-                  legendItems
-                )
-              ]
-            ),
+                      { key: "warning", style: styles.warning },
+                      prepared.warning
+                    ),
 
-            // Insights Section
-            results.length > 0 && React.createElement(
-              "section",
-              { key: "insights", style: styles.insightsSection },
-              [
-                React.createElement(
-                  "h3",
-                  { key: "title", style: styles.insightsTitle },
-                  "Dance Choreography Insights"
-                ),
-                React.createElement(
-                  "div",
-                  { key: "grid", style: styles.insightsGrid },
-                  [
-                    React.createElement(
-                      "div",
-                      { key: "dominant", style: styles.insightCard },
-                      [
-                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Dominant Emotion"),
-                        React.createElement("div", { key: "content", style: styles.insightContent }, getDominantEmotion())
-                      ]
-                    ),
-                    React.createElement(
-                      "div",
-                      { key: "diversity", style: styles.insightCard },
-                      [
-                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Emotion Diversity"),
-                        React.createElement("div", { key: "content", style: styles.insightContent }, getEmotionDiversity())
-                      ]
-                    ),
-                    React.createElement(
-                      "div",
-                      { key: "peak", style: styles.insightCard },
-                      [
-                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Peak Emotional Verse"),
-                        React.createElement("div", { key: "content", style: styles.insightContent }, getPeakEmotionalVerse())
-                      ]
-                    ),
-                    React.createElement(
-                      "div",
-                      { key: "transition", style: styles.insightCard },
-                      [
-                        React.createElement("div", { key: "title", style: styles.insightTitle }, "Most Common Transition"),
-                        React.createElement("div", { key: "content", style: styles.insightContent }, getMostCommonTransition())
-                      ]
+                  React.createElement(
+                    "div",
+                    { key: "grid", style: styles.reportGrid },
+                    [
+                      ["Detected Language", prepared.cleanedLanguage],
+                      ["Original Lines", prepared.originalLineCount],
+                      ["Prepared Verses", prepared.verseCount],
+                      ["Duplicates Removed", prepared.duplicateCount],
+                      ["Noise Removed", prepared.removedNoise],
+                      ["Input Quality", prepared.quality]
+                    ].map(([label, value]) =>
+                      React.createElement(
+                        "div",
+                        { key: label, style: styles.reportBox },
+                        [
+                          React.createElement(
+                            "div",
+                            { key: "label", style: styles.reportLabel },
+                            label
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "value", style: styles.reportValue },
+                            value
+                          )
+                        ]
+                      )
                     )
-                  ]
-                )
-              ]
-            )
+                  ),
+
+                  React.createElement(
+                    "h2",
+                    {
+                      key: "preview-title",
+                      style: { ...styles.sectionTitle, fontSize: "1.3rem" }
+                    },
+                    "Prepared Verse Preview"
+                  ),
+
+                  React.createElement(
+                    "div",
+                    { key: "preview", style: styles.versePreview },
+                    prepared.verses.map((v, i) =>
+                      React.createElement(
+                        "div",
+                        { key: i, style: styles.verseItem },
+                        [
+                          React.createElement(
+                            "strong",
+                            { key: "label" },
+                            `Verse ${i + 1}: `
+                          ),
+                          React.createElement("span", { key: "text" }, v)
+                        ]
+                      )
+                    )
+                  ),
+
+                  React.createElement(
+                    "div",
+                    { key: "analyze-row", style: styles.buttonRow },
+                    [
+                      React.createElement(
+                        "button",
+                        {
+                          key: "analyze",
+                          onClick: handleAnalyzeSong,
+                          disabled: loading || !canAnalyze,
+                          style: {
+                            ...styles.primaryButton,
+                            ...(loading || !canAnalyze ? styles.disabledBtn : {})
+                          }
+                        },
+                        loading
+                          ? [
+                              React.createElement("div", {
+                                key: "spinner",
+                                style: styles.loadingSpinner
+                              }),
+                              "Analyzing Emotional Journey..."
+                            ]
+                          : [
+                              React.createElement("span", { key: "icon" }, "🎭"),
+                              "Analyze Emotional Flow"
+                            ]
+                      )
+                    ]
+                  )
+                ]
+              ),
+
+            results.length > 0 &&
+              React.createElement(
+                "section",
+                { key: "results", style: styles.resultsSection },
+                [
+                  React.createElement(
+                    "div",
+                    { key: "header", style: styles.resultsHeader },
+                    [
+                      React.createElement(
+                        "h2",
+                        { key: "title", style: styles.sectionTitle },
+                        "Emotional Segments"
+                      ),
+                      React.createElement(
+                        "div",
+                        { key: "stats", style: styles.statsContainer },
+                        [
+                          React.createElement(
+                            "div",
+                            { key: "segments", style: styles.statItem },
+                            [
+                              React.createElement(
+                                "div",
+                                { key: "number", style: styles.statNumber },
+                                results.length
+                              ),
+                              React.createElement(
+                                "div",
+                                { key: "label", style: styles.statLabel },
+                                "Segments"
+                              )
+                            ]
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "emotions", style: styles.statItem },
+                            [
+                              React.createElement(
+                                "div",
+                                { key: "number", style: styles.statNumber },
+                                new Set(results.map((r) => getDisplayEmotion(r.emotion))).size
+                              ),
+                              React.createElement(
+                                "div",
+                                { key: "label", style: styles.statLabel },
+                                "Emotions"
+                              )
+                            ]
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "dominant", style: styles.statItem },
+                            [
+                              React.createElement(
+                                "div",
+                                { key: "number", style: styles.statNumber },
+                                getDominantEmotion()
+                              ),
+                              React.createElement(
+                                "div",
+                                { key: "label", style: styles.statLabel },
+                                "Dominant"
+                              )
+                            ]
+                          )
+                        ]
+                      )
+                    ]
+                  ),
+                  React.createElement(
+                    "div",
+                    { key: "grid", style: styles.segmentsGrid },
+                    segmentCards
+                  )
+                ]
+              ),
+
+            results.length > 0 &&
+              React.createElement(
+                "section",
+                { key: "visualization", style: styles.visualizationSection },
+                [
+                  React.createElement(
+                    "div",
+                    { key: "header", style: styles.visualizationHeader },
+                    [
+                      React.createElement(
+                        "h3",
+                        { key: "title", style: styles.visualizationTitle },
+                        "Emotional Journey Visualization"
+                      ),
+                      React.createElement(
+                        "p",
+                        { key: "description", style: styles.visualizationDescription },
+                        "Each verse shows the top predicted emotions throughout the song, useful for planning choreography flow and emotional transitions."
+                      )
+                    ]
+                  ),
+                  React.createElement(
+                    "div",
+                    { key: "chart", style: styles.chartContainer },
+                    [
+                      React.createElement("div", {
+                        key: "line",
+                        style: styles.chartLine
+                      }),
+                      React.createElement(
+                        "div",
+                        { key: "bars", style: styles.barsWrapper },
+                        visualizationBars
+                      )
+                    ]
+                  ),
+                  React.createElement(
+                    "div",
+                    { key: "legend", style: styles.legendContainer },
+                    legendItems
+                  )
+                ]
+              ),
+
+            results.length > 0 &&
+              React.createElement(
+                "section",
+                { key: "insights", style: styles.insightsSection },
+                [
+                  React.createElement(
+                    "h3",
+                    { key: "title", style: styles.insightsTitle },
+                    "Dance Choreography Insights"
+                  ),
+                  React.createElement(
+                    "div",
+                    { key: "grid", style: styles.insightsGrid },
+                    [
+                      React.createElement(
+                        "div",
+                        { key: "dominant", style: styles.insightCard },
+                        [
+                          React.createElement(
+                            "div",
+                            { key: "title", style: styles.insightTitle },
+                            "Dominant Emotion"
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "content", style: styles.insightContent },
+                            getDominantEmotion()
+                          )
+                        ]
+                      ),
+                      React.createElement(
+                        "div",
+                        { key: "diversity", style: styles.insightCard },
+                        [
+                          React.createElement(
+                            "div",
+                            { key: "title", style: styles.insightTitle },
+                            "Emotion Diversity"
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "content", style: styles.insightContent },
+                            getEmotionDiversity()
+                          )
+                        ]
+                      ),
+                      React.createElement(
+                        "div",
+                        { key: "peak", style: styles.insightCard },
+                        [
+                          React.createElement(
+                            "div",
+                            { key: "title", style: styles.insightTitle },
+                            "Peak Emotional Verse"
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "content", style: styles.insightContent },
+                            getPeakEmotionalVerse()
+                          )
+                        ]
+                      ),
+                      React.createElement(
+                        "div",
+                        { key: "transition", style: styles.insightCard },
+                        [
+                          React.createElement(
+                            "div",
+                            { key: "title", style: styles.insightTitle },
+                            "Most Common Transition"
+                          ),
+                          React.createElement(
+                            "div",
+                            { key: "content", style: styles.insightContent },
+                            getMostCommonTransition()
+                          )
+                        ]
+                      )
+                    ]
+                  )
+                ]
+              )
           ].filter(Boolean)
         )
       ]
