@@ -115,9 +115,9 @@ function EmotionAnalysis() {
   };
 
   const getLanguageMessage = (lang) => {
-    if (lang === "Sinhala") return "Sinhala lyrics detected. This will use your trained Sinhala emotion model when GPU backend is connected.";
+    if (lang === "Sinhala") return "Sinhala lyrics detected.";
     if (lang === "English") return "English lyrics detected. This will be processed using Mistral AI.";
-    if (lang === "Mixed") return "Mixed language detected. Sinhala will use your model and English will use Mistral AI.";
+    if (lang === "Mixed") return "Mixed language detected.";
     if (lang === "Mostly Sinhala") return "Mostly Sinhala detected. Non-Sinhala parts will be handled carefully.";
     if (lang === "Mostly English") return "Mostly English detected. This will be processed using Mistral AI.";
     return "No clear lyrics detected.";
@@ -831,7 +831,7 @@ function EmotionAnalysis() {
               },
               [
                 createEmotionBadge(theme, getDisplayEmotion(item.emotion), item.percentage),
-                item.language &&
+                item.language && item.language !== "Unknown" &&
                   React.createElement(
                     "span",
                     { key: "lang", style: styles.languageSmallBadge },
@@ -977,23 +977,38 @@ function EmotionAnalysis() {
     );
   });
 
-  const legendItems = Object.entries(emotionThemes).map(([emotion, theme]) => {
-    return React.createElement(
-      "div",
-      { key: emotion, style: styles.legendItem },
-      [
-        React.createElement("div", {
-          key: "color",
-          style: styles.legendColor(theme.gradient)
-        }),
-        React.createElement(
-          "span",
-          { key: "text", style: styles.legendText },
-          emotion.charAt(0).toUpperCase() + emotion.slice(1)
-        )
-      ]
-    );
-  });
+  const legendLabels = [
+  "Shringara",
+  "Hasya",
+  "Karuna",
+  "Roudhra",
+  "Veera",
+  "Bhayanakam",
+  "Bhibatsa",
+  "Adbhutha",
+  "Shantha"
+];
+
+const legendItems = legendLabels.map((emotion) => {
+  const displayEmotion = getDisplayEmotion(emotion);
+  const theme = getEmotionTheme(emotion);
+
+  return React.createElement(
+    "div",
+    { key: emotion, style: styles.legendItem },
+    [
+      React.createElement("div", {
+        key: "color",
+        style: styles.legendColor(theme.gradient)
+      }),
+      React.createElement(
+        "span",
+        { key: "text", style: styles.legendText },
+        `${emotion} (${displayEmotion})`
+      )
+    ]
+  );
+});
 
   const getDominantEmotion = () => {
     if (results.length === 0) return "N/A";

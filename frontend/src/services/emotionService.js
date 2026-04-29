@@ -20,6 +20,7 @@ export const analyzeSongVerses = async (songText) => {
   return (data.results || []).map((r) => ({
     verse_no: r.verse_no,
     verse: r.verse,
+    language: r.language || "",
     emotion: r.emotion,
     percentage: r.percentage,
     top3: r.top3 || [],
