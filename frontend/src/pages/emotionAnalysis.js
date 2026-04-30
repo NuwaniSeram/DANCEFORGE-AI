@@ -55,7 +55,8 @@ const emotionThemes = {
     gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     light: "rgba(102, 126, 234, 0.1)",
     border: "rgba(102, 126, 234, 0.3)"
-  }
+  },
+
 };
 
 const sampleLyrics = `මගේ හිත දුකෙන් පිරීලා
@@ -71,6 +72,8 @@ function EmotionAnalysis() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeSegment, setActiveSegment] = useState(null);
+  const [message, setMessage] = useState(null);
+  const[messageType, setMessageType] = useState("success");
 
   useEffect(() => {
     const styleId = "emotion-analysis-styles";
@@ -89,6 +92,10 @@ function EmotionAnalysis() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
         }
+        @keyframes wave {
+          0%, 100% {height: 8px; opacity:0.5;}
+          50% {height: 24px; opacity:1;}
+        }  
       `;
       document.head.appendChild(style);
     }
@@ -401,6 +408,31 @@ function EmotionAnalysis() {
       border: "1px solid rgba(255,255,255,0.08)",
       borderRadius: "14px",
       color: "rgba(255,255,255,0.78)"
+    },
+    audioUploadBox: {
+      marginBottom: "1.5rem",
+      padding: "1.2rem",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.1)",
+      borderRadius: "16px"
+    },
+    audioControls: {
+      display: "flex",
+      gap: "1rem",
+      flexWrap: "wrap",
+      alignItems: "center"
+    },
+    select: {
+      padding: "0.9rem 1rem",
+      background: "rgba(255,255,255,0.08)",
+        color: "#fff",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: "12px",
+      fontWeight: 700
+    },
+    fileInput: {
+      color: "rgba(255,255,255,0.8)",
+      flex: 1
     },
     languageBadge: {
       display: "inline-block",
@@ -758,7 +790,7 @@ function EmotionAnalysis() {
       color: "rgba(255, 255, 255, 0.8)",
       fontSize: "0.95rem",
       lineHeight: "1.5"
-    }
+    },
   };
 
   const createEmotionBadge = (theme, emotion, percentage) => {
@@ -1125,6 +1157,31 @@ const legendItems = legendLabels.map((emotion) => {
                           )
                         ]
                       ),
+                      message &&
+                      React.createElement(
+                        "div",
+                        {
+                          style: {
+                            padding: "1rem",
+                            borderRadius: "14px",
+                            marginBottom: "1rem",
+                            fontWeight: 600,
+                            background:
+                              messageType === "success"
+                                ? "rgba(46, 213, 115, 0.15)"
+                                : "rgba(255, 71, 87, 0.15)",
+                            border:
+                              messageType === "success"
+                                ? "1px solid rgba(46, 213, 115, 0.4)"
+                                : "1px solid rgba(255, 71, 87, 0.4)",
+                            color:
+                              messageType === "success"
+                                ? "#2ED573"
+                                : "#FF4757"
+                          }
+                        },
+                        message
+                      ),
                       React.createElement("textarea", {
                         key: "textarea",
                         rows: 10,
@@ -1191,21 +1248,6 @@ const legendItems = legendLabels.map((emotion) => {
                           React.createElement("span", { key: "icon" }, "🧹"),
                           "Prepare Lyrics"
                         ]
-                      ),
-
-                      React.createElement(
-                        "button",
-                        {
-                          key: "sample",
-                          style: styles.secondaryButton,
-                          onClick: () => {
-                            setLyrics(sampleLyrics);
-                            setLanguage(detectLanguage(sampleLyrics));
-                            setPrepared(null);
-                            setResults([]);
-                          }
-                        },
-                        "🎵 Try Sample"
                       ),
 
                       React.createElement(
