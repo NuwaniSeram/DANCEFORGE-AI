@@ -26,3 +26,40 @@ export const analyzeSongVerses = async (songText) => {
     top3: r.top3 || [],
   }));
 };
+
+export const saveEmotionHistory = async ({ userId,title, lyrics, results }) => {
+  const BACKEND_URL =
+    process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+
+  const res = await fetch(`${BACKEND_URL}/history/save`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      title,
+      lyrics,
+      results,
+    }),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Save history failed ${res.status}: ${msg}`);
+  }
+
+  return await res.json();
+};
+
+export const getEmotionHistory = async (userId = "demo_user") => {
+  const BACKEND_URL =
+    process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+
+  const res = await fetch(`${BACKEND_URL}/history/user/${userId}`);
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Get history failed ${res.status}: ${msg}`);
+  }
+
+  return await res.json();
+};

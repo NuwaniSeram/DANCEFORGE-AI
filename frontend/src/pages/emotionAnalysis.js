@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { analyzeSongVerses } from "../services/emotionService";
+import { analyzeSongVerses,saveEmotionHistory,getEmotionHistory } from "../services/emotionService";
 
 const emotionNameMap = {
   Shringara: "Romantic",
@@ -74,6 +74,14 @@ function EmotionAnalysis() {
   const [activeSegment, setActiveSegment] = useState(null);
   const [message, setMessage] = useState(null);
   const[messageType, setMessageType] = useState("success");
+  const [showPopup, setShowPopup] = useState(false);
+  const [songTitle, setSongTitle] = useState("");
+  const[saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("analyze");
+  const [history, setHistory] = useState([]);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedHistory, setSelectedHistory] = useState(null);
 
   useEffect(() => {
     const styleId = "emotion-analysis-styles";
@@ -100,6 +108,12 @@ function EmotionAnalysis() {
       document.head.appendChild(style);
     }
   }, []);
+
+  useEffect(() => {
+  if (activeTab === "history") {
+    loadHistory();
+  }
+}, [activeTab]);
 
   const countSinhalaChars = (text) => (text.match(/[\u0D80-\u0DFF]/g) || []).length;
   const countEnglishChars = (text) => (text.match(/[A-Za-z]/g) || []).length;
@@ -293,6 +307,57 @@ function EmotionAnalysis() {
     }
   };
 
+  const handleSaveAnalysis = async () => {
+    if (!songTitle.trim()) {
+      setMessage("Please enter a song/topic name before saving.");
+      setMessageType("error");
+      return;
+    }
+
+    if (!prepared || results.length === 0) {
+      setMessage("No analysis results available to save.");
+      setMessageType("error");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await saveEmotionHistory({
+        userId: "demo_user",
+        title: songTitle.trim(),
+        lyrics: prepared.cleanedText,
+        results: results
+      });
+
+      setMessage("Analysis saved successfully.");
+      setMessageType("success");
+      setShowPopup(false);
+      setSongTitle("");
+    } catch (err) {
+      console.error("Save failed:", err);
+      setMessage("Failed to save analysis. Check backend or MongoDB.");
+      setMessageType("error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadHistory = async () => {
+  setHistoryLoading(true);
+
+  try {
+    const data = await getEmotionHistory("demo_user");
+    setHistory(data.history || []);
+  } catch (err) {
+    console.error("History load failed:", err);
+    setMessage("Failed to load saved history.");
+    setMessageType("error");
+  } finally {
+    setHistoryLoading(false);
+  }
+};
+
   const canAnalyze =
     prepared &&
     prepared.verseCount > 0 &&
@@ -450,6 +515,28 @@ function EmotionAnalysis() {
       flexWrap: "wrap",
       marginTop: "1.2rem"
     },
+    tabRow: {
+      display: "flex",
+      gap: "1rem",
+      marginBottom: "2rem",
+      flexWrap: "wrap"
+    },
+    tabButton: (active) => ({
+      padding: "1rem 1.5rem",
+      background: active
+        ? "linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
+        : "rgba(255,255,255,0.08)",
+      color: "#fff",
+      border: active
+        ? "none"
+        : "1px solid rgba(255,255,255,0.15)",
+      borderRadius: "16px",
+      fontWeight: 800,
+      cursor: "pointer",
+      boxShadow: active
+        ? "0 4px 15px rgba(255,107,157,0.35)"
+        : "none"
+    }),
     primaryButton: {
       flex: 1,
       minWidth: "220px",
@@ -791,6 +878,48 @@ function EmotionAnalysis() {
       fontSize: "0.95rem",
       lineHeight: "1.5"
     },
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.65)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999
+    },
+    modalBox: {
+      width: "520px",
+      maxWidth: "90%",
+      background: "rgba(25,25,35,0.98)",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: "24px",
+      padding: "2rem",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+    },
+    modalTitle: {
+      color: "#fff",
+      fontSize: "1.5rem",
+      fontWeight: 800,
+      marginBottom: "0.8rem"
+    },
+    modalDesc: {
+      color: "rgba(255,255,255,0.65)",
+      lineHeight: 1.6,
+      marginBottom: "1.2rem"
+    },
+    popupInput: {
+      width: "100%",
+      padding: "1rem",
+      background: "rgba(255,255,255,0.08)",
+      color: "#fff",
+      border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: "14px",
+      fontSize: "1rem"
+    },
+
   };
 
   const createEmotionBadge = (theme, emotion, percentage) => {
@@ -1118,474 +1247,783 @@ const legendItems = legendLabels.map((emotion) => {
 
         React.createElement(
           "div",
-          { key: "content", style: styles.fusionContent },
+          { key: "tabs", style: styles.tabRow },
           [
             React.createElement(
-              "section",
-              { key: "input", style: styles.inputSection },
-              React.createElement(
-                "div",
-                { style: styles.inputContainer },
-                [
-                  React.createElement(
-                    "h2",
-                    { key: "title", style: styles.sectionTitle },
-                    "Song Lyrics Analysis"
-                  ),
-                  React.createElement(
-                    "p",
-                    { key: "description", style: styles.sectionDescription },
-                    "Enter Sinhala or English song lyrics. Use blank lines to separate verses. If no blank lines are used, the system groups every 4 lines as one verse."
-                  ),
-                  React.createElement(
-                    "div",
-                    { key: "textarea-wrapper", style: styles.textareaWrapper },
-                    [
-                      React.createElement(
-                        "div",
-                        { key: "label", style: styles.textareaLabel },
-                        [
-                          React.createElement(
-                            "span",
-                            { key: "text", style: styles.labelText },
-                            "Lyrics Input"
-                          ),
-                          React.createElement(
-                            "span",
-                            { key: "count", style: styles.lineCount },
-                            `${lyrics.split("\n").filter((l) => l.trim()).length} lines`
-                          )
-                        ]
-                      ),
-                      message &&
-                      React.createElement(
-                        "div",
-                        {
-                          style: {
-                            padding: "1rem",
-                            borderRadius: "14px",
-                            marginBottom: "1rem",
-                            fontWeight: 600,
-                            background:
-                              messageType === "success"
-                                ? "rgba(46, 213, 115, 0.15)"
-                                : "rgba(255, 71, 87, 0.15)",
-                            border:
-                              messageType === "success"
-                                ? "1px solid rgba(46, 213, 115, 0.4)"
-                                : "1px solid rgba(255, 71, 87, 0.4)",
-                            color:
-                              messageType === "success"
-                                ? "#2ED573"
-                                : "#FF4757"
-                          }
-                        },
-                        message
-                      ),
-                      React.createElement("textarea", {
-                        key: "textarea",
-                        rows: 10,
-                        style: styles.textarea,
-                        placeholder:
-                          "Paste song lyrics here...\n\nExample:\nමගේ හිත දුකෙන් පිරීලා\nඔබ නැති ලෝකය නිහඬ වෙලා\n\nසඳ එළිය මැකී ගියා\nමතකය පමණක් ඉතිරි වෙලා",
-                        value: lyrics,
-                        onChange: (e) => {
-                          const value = e.target.value;
-                          setLyrics(value);
-                          setLanguage(detectLanguage(value));
-                          setPrepared(null);
-                          setResults([]);
-                        },
-                        onFocus: (e) => {
-                          e.target.style.outline = "none";
-                          e.target.style.borderColor = "rgba(255, 107, 157, 0.5)";
-                          e.target.style.background = "rgba(255, 255, 255, 0.08)";
-                          e.target.style.boxShadow = "0 0 0 4px rgba(255, 107, 157, 0.1)";
-                        },
-                        onBlur: (e) => {
-                          e.target.style.outline = "";
-                          e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
-                          e.target.style.background = "rgba(255, 255, 255, 0.05)";
-                          e.target.style.boxShadow = "";
-                        }
-                      })
-                    ]
-                  ),
-
-                  React.createElement(
-                    "div",
-                    { key: "live-language", style: styles.liveInfo },
-                    [
-                      React.createElement("span", { key: "label" }, "Live detected language:"),
-                      React.createElement(
-                        "span",
-                        { key: "badge", style: styles.languageBadge },
-                        language
-                      ),
-                      React.createElement(
-                        "div",
-                        {
-                          key: "msg",
-                          style: { marginTop: "0.5rem", color: "rgba(255,255,255,0.6)" }
-                        },
-                        getLanguageMessage(language)
-                      )
-                    ]
-                  ),
-
-                  React.createElement(
-                    "div",
-                    { key: "buttons", style: styles.buttonRow },
-                    [
-                      React.createElement(
-                        "button",
-                        {
-                          key: "prepare",
-                          style: styles.primaryButton,
-                          onClick: handlePrepareLyrics
-                        },
-                        [
-                          React.createElement("span", { key: "icon" }, "🧹"),
-                          "Prepare Lyrics"
-                        ]
-                      ),
-
-                      React.createElement(
-                        "button",
-                        {
-                          key: "clear",
-                          style: styles.secondaryButton,
-                          onClick: () => {
-                            setLyrics("");
-                            setLanguage("Unknown");
-                            setPrepared(null);
-                            setResults([]);
-                          }
-                        },
-                        "🗑 Clear"
-                      )
-                    ]
-                  )
-                ]
-              )
+              "button",
+              {
+                key: "analyze-tab",
+                style: styles.tabButton(activeTab === "analyze"),
+                onClick: () => setActiveTab("analyze")
+              },
+              "🎭 Analyze Lyrics"
             ),
 
-            prepared &&
+            React.createElement(
+              "button",
+              {
+                key: "history-tab",
+                style: styles.tabButton(activeTab === "history"),
+                onClick: () => setActiveTab("history")
+              },
+              "📚 My History"
+            )
+          ]
+        ),
+
+        activeTab === "analyze" &&
+          React.createElement(
+            "div",
+            { key: "analyze-content", style: styles.fusionContent },
+            [
               React.createElement(
                 "section",
-                { key: "prepared", style: styles.preparedSection },
-                [
-                  React.createElement(
-                    "h2",
-                    { key: "title", style: styles.sectionTitle },
-                    "Input Quality Report"
-                  ),
-
-                  prepared.warning &&
+                { key: "input", style: styles.inputSection },
+                React.createElement(
+                  "div",
+                  { style: styles.inputContainer },
+                  [
                     React.createElement(
-                      "div",
-                      { key: "warning", style: styles.warning },
-                      prepared.warning
+                      "h2",
+                      { key: "title", style: styles.sectionTitle },
+                      "Song Lyrics Analysis"
                     ),
 
-                  React.createElement(
-                    "div",
-                    { key: "grid", style: styles.reportGrid },
-                    [
-                      ["Detected Language", prepared.cleanedLanguage],
-                      ["Original Lines", prepared.originalLineCount],
-                      ["Prepared Verses", prepared.verseCount],
-                      ["Duplicates Removed", prepared.duplicateCount],
-                      ["Noise Removed", prepared.removedNoise],
-                      ["Input Quality", prepared.quality]
-                    ].map(([label, value]) =>
+                    React.createElement(
+                      "p",
+                      { key: "description", style: styles.sectionDescription },
+                      "Enter Sinhala or English song lyrics. Use blank lines to separate verses. If no blank lines are used, the system groups every 4 lines as one verse."
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "textarea-wrapper", style: styles.textareaWrapper },
+                      [
+                        React.createElement(
+                          "div",
+                          { key: "label", style: styles.textareaLabel },
+                          [
+                            React.createElement(
+                              "span",
+                              { key: "text", style: styles.labelText },
+                              "Lyrics Input"
+                            ),
+                            React.createElement(
+                              "span",
+                              { key: "count", style: styles.lineCount },
+                              `${lyrics.split("\n").filter((l) => l.trim()).length} lines`
+                            )
+                          ]
+                        ),
+
+                        message &&
+                          React.createElement(
+                            "div",
+                            {
+                              key: "message",
+                              style: {
+                                padding: "1rem",
+                                borderRadius: "14px",
+                                marginBottom: "1rem",
+                                fontWeight: 600,
+                                background:
+                                  messageType === "success"
+                                    ? "rgba(46, 213, 115, 0.15)"
+                                    : "rgba(255, 71, 87, 0.15)",
+                                border:
+                                  messageType === "success"
+                                    ? "1px solid rgba(46, 213, 115, 0.4)"
+                                    : "1px solid rgba(255, 71, 87, 0.4)",
+                                color:
+                                  messageType === "success"
+                                    ? "#2ED573"
+                                    : "#FF4757"
+                              }
+                            },
+                            message
+                          ),
+
+                        React.createElement("textarea", {
+                          key: "textarea",
+                          rows: 10,
+                          style: styles.textarea,
+                          placeholder:
+                            "Paste song lyrics here...\n\nExample:\nමගේ හිත දුකෙන් පිරීලා\nඔබ නැති ලෝකය නිහඬ වෙලා\n\nසඳ එළිය මැකී ගියා\nමතකය පමණක් ඉතිරි වෙලා",
+                          value: lyrics,
+                          onChange: (e) => {
+                            const value = e.target.value;
+                            setLyrics(value);
+                            setLanguage(detectLanguage(value));
+                            setPrepared(null);
+                            setResults([]);
+                          },
+                          onFocus: (e) => {
+                            e.target.style.outline = "none";
+                            e.target.style.borderColor = "rgba(255, 107, 157, 0.5)";
+                            e.target.style.background = "rgba(255, 255, 255, 0.08)";
+                            e.target.style.boxShadow = "0 0 0 4px rgba(255, 107, 157, 0.1)";
+                          },
+                          onBlur: (e) => {
+                            e.target.style.outline = "";
+                            e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                            e.target.style.background = "rgba(255, 255, 255, 0.05)";
+                            e.target.style.boxShadow = "";
+                          }
+                        })
+                      ].filter(Boolean)
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "live-language", style: styles.liveInfo },
+                      [
+                        React.createElement("span", { key: "label" }, "Live detected language:"),
+                        React.createElement(
+                          "span",
+                          { key: "badge", style: styles.languageBadge },
+                          language
+                        ),
+                        React.createElement(
+                          "div",
+                          {
+                            key: "msg",
+                            style: { marginTop: "0.5rem", color: "rgba(255,255,255,0.6)" }
+                          },
+                          getLanguageMessage(language)
+                        )
+                      ]
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "buttons", style: styles.buttonRow },
+                      [
+                        React.createElement(
+                          "button",
+                          {
+                            key: "prepare",
+                            style: styles.primaryButton,
+                            onClick: handlePrepareLyrics
+                          },
+                          [
+                            React.createElement("span", { key: "icon" }, "🧹"),
+                            "Prepare Lyrics"
+                          ]
+                        ),
+
+                        React.createElement(
+                          "button",
+                          {
+                            key: "clear",
+                            style: styles.secondaryButton,
+                            onClick: () => {
+                              setLyrics("");
+                              setLanguage("Unknown");
+                              setPrepared(null);
+                              setResults([]);
+                              setMessage(null);
+                            }
+                          },
+                          "🗑 Clear"
+                        )
+                      ]
+                    )
+                  ]
+                )
+              ),
+
+              prepared &&
+                React.createElement(
+                  "section",
+                  { key: "prepared", style: styles.preparedSection },
+                  [
+                    React.createElement(
+                      "h2",
+                      { key: "title", style: styles.sectionTitle },
+                      "Input Quality Report"
+                    ),
+
+                    prepared.warning &&
                       React.createElement(
                         "div",
-                        { key: label, style: styles.reportBox },
+                        { key: "warning", style: styles.warning },
+                        prepared.warning
+                      ),
+
+                    React.createElement(
+                      "div",
+                      { key: "grid", style: styles.reportGrid },
+                      [
+                        ["Detected Language", prepared.cleanedLanguage],
+                        ["Original Lines", prepared.originalLineCount],
+                        ["Prepared Verses", prepared.verseCount],
+                        ["Duplicates Removed", prepared.duplicateCount || 0],
+                        ["Noise Removed", prepared.removedNoise || 0],
+                        ["Input Quality", prepared.quality || "Saved"]
+                      ].map(([label, value]) =>
+                        React.createElement(
+                          "div",
+                          { key: label, style: styles.reportBox },
+                          [
+                            React.createElement(
+                              "div",
+                              { key: "label", style: styles.reportLabel },
+                              label
+                            ),
+                            React.createElement(
+                              "div",
+                              { key: "value", style: styles.reportValue },
+                              value
+                            )
+                          ]
+                        )
+                      )
+                    ),
+
+                    React.createElement(
+                      "h2",
+                      {
+                        key: "preview-title",
+                        style: { ...styles.sectionTitle, fontSize: "1.3rem" }
+                      },
+                      "Prepared Verse Preview"
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "preview", style: styles.versePreview },
+                      (prepared.verses || []).map((v, i) =>
+                        React.createElement(
+                          "div",
+                          { key: i, style: styles.verseItem },
+                          [
+                            React.createElement(
+                              "strong",
+                              { key: "label" },
+                              `Verse ${i + 1}: `
+                            ),
+                            React.createElement("span", { key: "text" }, v)
+                          ]
+                        )
+                      )
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "analyze-row", style: styles.buttonRow },
+                      [
+                        React.createElement(
+                          "button",
+                          {
+                            key: "analyze",
+                            onClick: handleAnalyzeSong,
+                            disabled: loading || !canAnalyze,
+                            style: {
+                              ...styles.primaryButton,
+                              ...(loading || !canAnalyze ? styles.disabledBtn : {})
+                            }
+                          },
+                          loading
+                            ? [
+                                React.createElement("div", {
+                                  key: "spinner",
+                                  style: styles.loadingSpinner
+                                }),
+                                "Analyzing Emotional Journey..."
+                              ]
+                            : [
+                                React.createElement("span", { key: "icon" }, "🎭"),
+                                "Analyze Emotional Flow"
+                              ]
+                        )
+                      ]
+                    )
+                  ].filter(Boolean)
+                ),
+
+              results.length > 0 &&
+                React.createElement(
+                  "section",
+                  { key: "results", style: styles.resultsSection },
+                  [
+                    React.createElement(
+                      "div",
+                      { key: "header", style: styles.resultsHeader },
+                      [
+                        React.createElement(
+                          "h2",
+                          { key: "title", style: styles.sectionTitle },
+                          "Emotional Segments"
+                        ),
+
+                        React.createElement(
+                          "div",
+                          { key: "stats", style: styles.statsContainer },
+                          [
+                            React.createElement(
+                              "div",
+                              { key: "segments", style: styles.statItem },
+                              [
+                                React.createElement(
+                                  "div",
+                                  { key: "number", style: styles.statNumber },
+                                  results.length
+                                ),
+                                React.createElement(
+                                  "div",
+                                  { key: "label", style: styles.statLabel },
+                                  "Segments"
+                                )
+                              ]
+                            ),
+
+                            React.createElement(
+                              "div",
+                              { key: "emotions", style: styles.statItem },
+                              [
+                                React.createElement(
+                                  "div",
+                                  { key: "number", style: styles.statNumber },
+                                  new Set(results.map((r) => getDisplayEmotion(r.emotion))).size
+                                ),
+                                React.createElement(
+                                  "div",
+                                  { key: "label", style: styles.statLabel },
+                                  "Emotions"
+                                )
+                              ]
+                            ),
+
+                            React.createElement(
+                              "div",
+                              { key: "dominant", style: styles.statItem },
+                              [
+                                React.createElement(
+                                  "div",
+                                  { key: "number", style: styles.statNumber },
+                                  getDominantEmotion()
+                                ),
+                                React.createElement(
+                                  "div",
+                                  { key: "label", style: styles.statLabel },
+                                  "Dominant"
+                                )
+                              ]
+                            )
+                          ]
+                        )
+                      ]
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "grid", style: styles.segmentsGrid },
+                      segmentCards
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "save-row", style: styles.buttonRow },
+                      [
+                        React.createElement(
+                          "button",
+                          {
+                            key: "save-analysis",
+                            style: styles.primaryButton,
+                            onClick: () => setShowPopup(true)
+                          },
+                          "💾 Save This Analysis"
+                        )
+                      ]
+                    )
+                  ]
+                ),
+
+              results.length > 0 &&
+                React.createElement(
+                  "section",
+                  { key: "visualization", style: styles.visualizationSection },
+                  [
+                    React.createElement(
+                      "div",
+                      { key: "header", style: styles.visualizationHeader },
+                      [
+                        React.createElement(
+                          "h3",
+                          { key: "title", style: styles.visualizationTitle },
+                          "Emotional Journey Visualization"
+                        ),
+                        React.createElement(
+                          "p",
+                          { key: "description", style: styles.visualizationDescription },
+                          "Each verse shows the top predicted emotions throughout the song, useful for planning choreography flow and emotional transitions."
+                        )
+                      ]
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "chart", style: styles.chartContainer },
+                      [
+                        React.createElement("div", {
+                          key: "line",
+                          style: styles.chartLine
+                        }),
+                        React.createElement(
+                          "div",
+                          { key: "bars", style: styles.barsWrapper },
+                          visualizationBars
+                        )
+                      ]
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "legend", style: styles.legendContainer },
+                      legendItems
+                    )
+                  ]
+                ),
+
+              results.length > 0 &&
+                React.createElement(
+                  "section",
+                  { key: "insights", style: styles.insightsSection },
+                  [
+                    React.createElement(
+                      "h3",
+                      { key: "title", style: styles.insightsTitle },
+                      "Dance Choreography Insights"
+                    ),
+
+                    React.createElement(
+                      "div",
+                      { key: "grid", style: styles.insightsGrid },
+                      [
+                        React.createElement(
+                          "div",
+                          { key: "dominant", style: styles.insightCard },
+                          [
+                            React.createElement(
+                              "div",
+                              { key: "title", style: styles.insightTitle },
+                              "Dominant Emotion"
+                            ),
+                            React.createElement(
+                              "div",
+                              { key: "content", style: styles.insightContent },
+                              getDominantEmotion()
+                            )
+                          ]
+                        ),
+
+                        React.createElement(
+                          "div",
+                          { key: "diversity", style: styles.insightCard },
+                          [
+                            React.createElement(
+                              "div",
+                              { key: "title", style: styles.insightTitle },
+                              "Emotion Diversity"
+                            ),
+                            React.createElement(
+                              "div",
+                              { key: "content", style: styles.insightContent },
+                              getEmotionDiversity()
+                            )
+                          ]
+                        ),
+
+                        React.createElement(
+                          "div",
+                          { key: "peak", style: styles.insightCard },
+                          [
+                            React.createElement(
+                              "div",
+                              { key: "title", style: styles.insightTitle },
+                              "Peak Emotional Verse"
+                            ),
+                            React.createElement(
+                              "div",
+                              { key: "content", style: styles.insightContent },
+                              getPeakEmotionalVerse()
+                            )
+                          ]
+                        ),
+
+                        React.createElement(
+                          "div",
+                          { key: "transition", style: styles.insightCard },
+                          [
+                            React.createElement(
+                              "div",
+                              { key: "title", style: styles.insightTitle },
+                              "Most Common Transition"
+                            ),
+                            React.createElement(
+                              "div",
+                              { key: "content", style: styles.insightContent },
+                              getMostCommonTransition()
+                            )
+                          ]
+                        )
+                      ]
+                    )
+                  ]
+                ),
+
+              showPopup &&
+                React.createElement(
+                  "div",
+                  { key: "save-popup", style: styles.modalOverlay },
+                  React.createElement(
+                    "div",
+                    { style: styles.modalBox },
+                    [
+                      React.createElement(
+                        "h2",
+                        { key: "title", style: styles.modalTitle },
+                        "Save Emotion Analysis"
+                      ),
+
+                      React.createElement(
+                        "p",
+                        { key: "desc", style: styles.modalDesc },
+                        "Enter a song or topic name to save this full analysis with verse-by-verse emotion results."
+                      ),
+
+                      React.createElement("input", {
+                        key: "song-title",
+                        value: songTitle,
+                        onChange: (e) => setSongTitle(e.target.value),
+                        placeholder: "Example: Sad Sinhala Love Song",
+                        style: styles.popupInput
+                      }),
+
+                      React.createElement(
+                        "div",
+                        { key: "buttons", style: styles.buttonRow },
                         [
                           React.createElement(
-                            "div",
-                            { key: "label", style: styles.reportLabel },
-                            label
+                            "button",
+                            {
+                              key: "save",
+                              style: {
+                                ...styles.primaryButton,
+                                ...(saving ? styles.disabledBtn : {})
+                              },
+                              disabled: saving,
+                              onClick: handleSaveAnalysis
+                            },
+                            saving ? "Saving..." : "Save Analysis"
                           ),
+
                           React.createElement(
-                            "div",
-                            { key: "value", style: styles.reportValue },
-                            value
+                            "button",
+                            {
+                              key: "cancel",
+                              style: styles.secondaryButton,
+                              onClick: () => {
+                                setShowPopup(false);
+                                setSongTitle("");
+                              }
+                            },
+                            "Cancel"
                           )
                         ]
                       )
-                    )
-                  ),
-
-                  React.createElement(
-                    "h2",
-                    {
-                      key: "preview-title",
-                      style: { ...styles.sectionTitle, fontSize: "1.3rem" }
-                    },
-                    "Prepared Verse Preview"
-                  ),
-
-                  React.createElement(
-                    "div",
-                    { key: "preview", style: styles.versePreview },
-                    prepared.verses.map((v, i) =>
-                      React.createElement(
-                        "div",
-                        { key: i, style: styles.verseItem },
-                        [
-                          React.createElement(
-                            "strong",
-                            { key: "label" },
-                            `Verse ${i + 1}: `
-                          ),
-                          React.createElement("span", { key: "text" }, v)
-                        ]
-                      )
-                    )
-                  ),
-
-                  React.createElement(
-                    "div",
-                    { key: "analyze-row", style: styles.buttonRow },
-                    [
-                      React.createElement(
-                        "button",
-                        {
-                          key: "analyze",
-                          onClick: handleAnalyzeSong,
-                          disabled: loading || !canAnalyze,
-                          style: {
-                            ...styles.primaryButton,
-                            ...(loading || !canAnalyze ? styles.disabledBtn : {})
-                          }
-                        },
-                        loading
-                          ? [
-                              React.createElement("div", {
-                                key: "spinner",
-                                style: styles.loadingSpinner
-                              }),
-                              "Analyzing Emotional Journey..."
-                            ]
-                          : [
-                              React.createElement("span", { key: "icon" }, "🎭"),
-                              "Analyze Emotional Flow"
-                            ]
-                      )
                     ]
                   )
-                ]
-              ),
+                )
+            ].filter(Boolean)
+          ),
 
-            results.length > 0 &&
+        activeTab === "history" &&
+          React.createElement(
+            "div",
+            { key: "history-content", style: styles.fusionContent },
+            [
               React.createElement(
                 "section",
-                { key: "results", style: styles.resultsSection },
+                { key: "history-section", style: styles.resultsSection },
                 [
                   React.createElement(
                     "div",
-                    { key: "header", style: styles.resultsHeader },
+                    { key: "history-header", style: styles.resultsHeader },
                     [
                       React.createElement(
                         "h2",
                         { key: "title", style: styles.sectionTitle },
-                        "Emotional Segments"
+                        "Saved Emotion Analyses"
                       ),
-                      React.createElement(
-                        "div",
-                        { key: "stats", style: styles.statsContainer },
-                        [
-                          React.createElement(
-                            "div",
-                            { key: "segments", style: styles.statItem },
-                            [
-                              React.createElement(
-                                "div",
-                                { key: "number", style: styles.statNumber },
-                                results.length
-                              ),
-                              React.createElement(
-                                "div",
-                                { key: "label", style: styles.statLabel },
-                                "Segments"
-                              )
-                            ]
-                          ),
-                          React.createElement(
-                            "div",
-                            { key: "emotions", style: styles.statItem },
-                            [
-                              React.createElement(
-                                "div",
-                                { key: "number", style: styles.statNumber },
-                                new Set(results.map((r) => getDisplayEmotion(r.emotion))).size
-                              ),
-                              React.createElement(
-                                "div",
-                                { key: "label", style: styles.statLabel },
-                                "Emotions"
-                              )
-                            ]
-                          ),
-                          React.createElement(
-                            "div",
-                            { key: "dominant", style: styles.statItem },
-                            [
-                              React.createElement(
-                                "div",
-                                { key: "number", style: styles.statNumber },
-                                getDominantEmotion()
-                              ),
-                              React.createElement(
-                                "div",
-                                { key: "label", style: styles.statLabel },
-                                "Dominant"
-                              )
-                            ]
-                          )
-                        ]
-                      )
-                    ]
-                  ),
-                  React.createElement(
-                    "div",
-                    { key: "grid", style: styles.segmentsGrid },
-                    segmentCards
-                  )
-                ]
-              ),
 
-            results.length > 0 &&
-              React.createElement(
-                "section",
-                { key: "visualization", style: styles.visualizationSection },
-                [
-                  React.createElement(
-                    "div",
-                    { key: "header", style: styles.visualizationHeader },
-                    [
                       React.createElement(
-                        "h3",
-                        { key: "title", style: styles.visualizationTitle },
-                        "Emotional Journey Visualization"
-                      ),
-                      React.createElement(
-                        "p",
-                        { key: "description", style: styles.visualizationDescription },
-                        "Each verse shows the top predicted emotions throughout the song, useful for planning choreography flow and emotional transitions."
+                        "button",
+                        {
+                          key: "refresh",
+                          style: styles.secondaryButton,
+                          onClick: loadHistory
+                        },
+                        "🔄 Refresh"
                       )
                     ]
                   ),
-                  React.createElement(
-                    "div",
-                    { key: "chart", style: styles.chartContainer },
-                    [
-                      React.createElement("div", {
-                        key: "line",
-                        style: styles.chartLine
-                      }),
-                      React.createElement(
-                        "div",
-                        { key: "bars", style: styles.barsWrapper },
-                        visualizationBars
-                      )
-                    ]
-                  ),
-                  React.createElement(
-                    "div",
-                    { key: "legend", style: styles.legendContainer },
-                    legendItems
-                  )
-                ]
-              ),
 
-            results.length > 0 &&
-              React.createElement(
-                "section",
-                { key: "insights", style: styles.insightsSection },
-                [
-                  React.createElement(
-                    "h3",
-                    { key: "title", style: styles.insightsTitle },
-                    "Dance Choreography Insights"
-                  ),
-                  React.createElement(
-                    "div",
-                    { key: "grid", style: styles.insightsGrid },
-                    [
-                      React.createElement(
+                  message &&
+                    React.createElement(
+                      "div",
+                      {
+                        key: "history-message",
+                        style: {
+                          padding: "1rem",
+                          borderRadius: "14px",
+                          marginBottom: "1rem",
+                          fontWeight: 600,
+                          background:
+                            messageType === "success"
+                              ? "rgba(46, 213, 115, 0.15)"
+                              : "rgba(255, 71, 87, 0.15)",
+                          border:
+                            messageType === "success"
+                              ? "1px solid rgba(46, 213, 115, 0.4)"
+                              : "1px solid rgba(255, 71, 87, 0.4)",
+                          color:
+                            messageType === "success"
+                              ? "#2ED573"
+                              : "#FF4757"
+                        }
+                      },
+                      message
+                    ),
+
+                  React.createElement("input", {
+                    key: "search",
+                    placeholder: "Search by song name or lyrics...",
+                    value: historySearch,
+                    onChange: (e) => setHistorySearch(e.target.value),
+                    style: {
+                      ...styles.popupInput,
+                      marginBottom: "1.5rem"
+                    }
+                  }),
+
+                  historyLoading
+                    ? React.createElement(
                         "div",
-                        { key: "dominant", style: styles.insightCard },
-                        [
-                          React.createElement(
-                            "div",
-                            { key: "title", style: styles.insightTitle },
-                            "Dominant Emotion"
-                          ),
-                          React.createElement(
-                            "div",
-                            { key: "content", style: styles.insightContent },
-                            getDominantEmotion()
-                          )
-                        ]
-                      ),
-                      React.createElement(
-                        "div",
-                        { key: "diversity", style: styles.insightCard },
-                        [
-                          React.createElement(
-                            "div",
-                            { key: "title", style: styles.insightTitle },
-                            "Emotion Diversity"
-                          ),
-                          React.createElement(
-                            "div",
-                            { key: "content", style: styles.insightContent },
-                            getEmotionDiversity()
-                          )
-                        ]
-                      ),
-                      React.createElement(
-                        "div",
-                        { key: "peak", style: styles.insightCard },
-                        [
-                          React.createElement(
-                            "div",
-                            { key: "title", style: styles.insightTitle },
-                            "Peak Emotional Verse"
-                          ),
-                          React.createElement(
-                            "div",
-                            { key: "content", style: styles.insightContent },
-                            getPeakEmotionalVerse()
-                          )
-                        ]
-                      ),
-                      React.createElement(
-                        "div",
-                        { key: "transition", style: styles.insightCard },
-                        [
-                          React.createElement(
-                            "div",
-                            { key: "title", style: styles.insightTitle },
-                            "Most Common Transition"
-                          ),
-                          React.createElement(
-                            "div",
-                            { key: "content", style: styles.insightContent },
-                            getMostCommonTransition()
-                          )
-                        ]
+                        {
+                          key: "loading",
+                          style: {
+                            color: "rgba(255,255,255,0.7)",
+                            padding: "1rem"
+                          }
+                        },
+                        "Loading saved analyses..."
                       )
-                    ]
-                  )
-                ]
+                    : (history || [])
+                        .filter(
+                          (h) =>
+                            (h.title || "")
+                              .toLowerCase()
+                              .includes(historySearch.toLowerCase()) ||
+                            (h.lyrics || "")
+                              .toLowerCase()
+                              .includes(historySearch.toLowerCase())
+                        )
+                        .map((item) =>
+                          React.createElement(
+                            "div",
+                            {
+                              key: item._id,
+                              style: {
+                                background: "rgba(255,255,255,0.05)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                padding: "1.2rem",
+                                marginTop: "1rem",
+                                borderRadius: "16px",
+                                cursor: "pointer",
+                                transition: "all 0.3s ease"
+                              },
+                              onClick: () => {
+                                setSelectedHistory(item);
+                                setLyrics(item.lyrics || "");
+                                setResults(item.results || []);
+                                setPrepared({
+                                  cleanedText: item.lyrics || "",
+                                  verses: (item.lyrics || "").split("\n\n"),
+                                  verseCount: (item.results || []).length,
+                                  cleanedLanguage: "Saved",
+                                  originalLineCount: (item.lyrics || "").split("\n").length,
+                                  duplicateCount: 0,
+                                  removedNoise: 0,
+                                  quality: "Saved",
+                                  warning: "Loaded from saved emotion analysis history."
+                                });
+                                setLanguage(detectLanguage(item.lyrics || ""));
+                                setActiveTab("analyze");
+                              }
+                            },
+                            [
+                              React.createElement(
+                                "h3",
+                                {
+                                  key: "title",
+                                  style: {
+                                    color: "#ffffff",
+                                    marginBottom: "0.5rem"
+                                  }
+                                },
+                                item.title || "Untitled"
+                              ),
+
+                              React.createElement(
+                                "p",
+                                {
+                                  key: "date",
+                                  style: {
+                                    color: "rgba(255,255,255,0.55)",
+                                    marginBottom: "0.7rem"
+                                  }
+                                },
+                                item.createdAt
+                                  ? new Date(item.createdAt).toLocaleString()
+                                  : "No date"
+                              ),
+
+                              React.createElement(
+                                "p",
+                                {
+                                  key: "summary",
+                                  style: {
+                                    color: "rgba(255,255,255,0.75)",
+                                    lineHeight: "1.5"
+                                  }
+                                },
+                                `${(item.results || []).length} verses analyzed`
+                              )
+                            ]
+                          )
+                        ),
+
+                  !historyLoading &&
+                    (history || []).length === 0 &&
+                    React.createElement(
+                      "div",
+                      {
+                        key: "empty",
+                        style: {
+                          color: "rgba(255,255,255,0.65)",
+                          padding: "1rem",
+                          background: "rgba(255,255,255,0.04)",
+                          borderRadius: "14px"
+                        }
+                      },
+                      "No saved emotion analyses yet."
+                    )
+                ].filter(Boolean)
               )
-          ].filter(Boolean)
-        )
-      ]
+            ]
+          )
+      ].filter(Boolean)
     )
   );
 }
