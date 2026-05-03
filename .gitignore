@@ -1,0 +1,22 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+.env
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/build/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Uploads / videos (large binary files)
+backend/practice_uploads/
