@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { analyzeSongVerses,saveEmotionHistory,getEmotionHistory } from "../services/emotionService";
 
 const emotionNameMap = {
-  Shringara: "Romantic",
+  Shringara: "Love",
   Hasya: "Joyful",
   Karuna: "Sad",
   Roudhra: "Angry",
@@ -26,7 +26,7 @@ const emotionThemes = {
     light: "rgba(74, 144, 226, 0.1)",
     border: "rgba(74, 144, 226, 0.3)"
   },
-  romantic: {
+  love: {
     gradient: "linear-gradient(135deg, #FF6B95 0%, #FF4D7E 100%)",
     light: "rgba(255, 107, 149, 0.1)",
     border: "rgba(255, 107, 149, 0.3)"
@@ -230,7 +230,7 @@ function EmotionAnalysis() {
 
     if (displayEmotion.includes("joy")) return emotionThemes.happy;
     if (displayEmotion.includes("sad")) return emotionThemes.sad;
-    if (displayEmotion.includes("romantic")) return emotionThemes.romantic;
+    if (displayEmotion.includes("love")) return emotionThemes.love;
     if (displayEmotion.includes("angry")) return emotionThemes.angry;
     if (displayEmotion.includes("peace")) return emotionThemes.peaceful;
     if (displayEmotion.includes("heroic")) return emotionThemes.energetic;
@@ -948,7 +948,28 @@ function EmotionAnalysis() {
     );
   };
 
+  const getCombinedTopEmotion = (item) => {
+    if (!item.top3 || item.top3.length === 0) {
+      return {
+        label: getDisplayEmotion(item.emotion),
+        percentage: item.percentage
+      };
+    }
+
+    const max = Math.max(...item.top3.map(e => Number(e.percentage || 0)));
+
+    const topEmotions = item.top3
+      .filter(e => Number(e.percentage || 0) === max)
+      .map(e => getDisplayEmotion(e.emotion));
+
+    return {
+      label: topEmotions.join(" + "),
+      percentage: max
+    };
+  };
+
   const segmentCards = results.map((item, index) => {
+    const combined = getCombinedTopEmotion(item);
     const theme = getEmotionTheme(item.emotion);
     const isActive = activeSegment === index;
 
@@ -991,7 +1012,8 @@ function EmotionAnalysis() {
                 style: { display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }
               },
               [
-                createEmotionBadge(theme, getDisplayEmotion(item.emotion), item.percentage),
+                //createEmotionBadge(theme, getDisplayEmotion(item.emotion), item.percentage),
+                createEmotionBadge(theme,combined.label, combined.percentage),
                 item.language && item.language !== "Unknown" &&
                   React.createElement(
                     "span",
