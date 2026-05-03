@@ -1,12 +1,8 @@
-import React from 'react';
+// frontend/src/pages/Page2.js
+// Delegates to the Performance Analysis research component
 
-function Page2() {
-  return (
-    <div className="placeholder-page">
-      <h1>Performance Analysis</h1>
-      <p>This feature is coming soon. Analyze dance performances with AI-powered movement tracking.</p>
-    </div>
-  );
+import PerformanceAnalysis from "./PerformanceAnalysis";
+
+export default function Page2() {
+  return <PerformanceAnalysis />;
 }
-
-export default Page2;
