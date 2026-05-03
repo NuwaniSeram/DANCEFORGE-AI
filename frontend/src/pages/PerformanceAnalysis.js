@@ -13,7 +13,7 @@ import CounterfactualPanel from "../components/performance/CounterfactualPanel";
 import TransparencyCard    from "../components/performance/TransparencyCard";
 
 // ← Point to your route prefix, not the old standalone port
-const API_BASE = "http://127.0.0.1:8000/performance";
+const API_BASE = "https://0rkzum4r6xht17-8000.proxy.runpod.net/performance";
 
 export default function PerformanceAnalysis() {
   const [reference, setReference]     = useState(null);
