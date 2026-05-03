@@ -37,8 +37,8 @@ function Navigation() {
         </li>
         <li>
           <Link to="/page2" className={location.pathname === '/page2' ? 'active' : ''}>
-            Page 2
-          </Link>
+  Performance Analysis
+</Link>
         </li>
         <li>
           <Link to="/fusionstudio" className={location.pathname === '/fusionstudio' ? 'active' : ''}>

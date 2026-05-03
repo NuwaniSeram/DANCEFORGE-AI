@@ -4,6 +4,7 @@ from app.database.mongodb import users_collection
 from app.routes import videos
 from app.routes import emotion_routes
 from app.routes import emotion_history_routes
+from app.routes import performance_routes 
 
 app = FastAPI(title="DanceForge AI API")
 
@@ -20,6 +21,7 @@ app.add_middleware(
 app.include_router(videos.router)
 app.include_router(emotion_routes.router)
 app.include_router(emotion_history_routes.router)
+app.include_router(performance_routes.router)
 @app.get("/")
 def test_db():
     users_collection.insert_one({"test": "MongoDB Connected"})
