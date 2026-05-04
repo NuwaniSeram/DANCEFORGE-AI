@@ -30,15 +30,15 @@ function Navigation() {
             Digital Archive
           </Link>
         </li>
-        <li>
+        {/* <li>
           <Link to="/page1" className={location.pathname === '/page1' ? 'active' : ''}>
             Choreography Studio
           </Link>
-        </li>
+        </li> */}
         <li>
-          <Link to="/page2" className={location.pathname === '/page2' ? 'active' : ''}>
+          {/* <Link to="/page2" className={location.pathname === '/page2' ? 'active' : ''}>
             performance analysis
-          </Link>
+          </Link> */}
           <Link to="/emotion" className={location.pathname === '/emotion' ? 'active' : ''}>
           Choreography Studio
         </Link>
