@@ -8,7 +8,7 @@ BASE_DIR = os.path.abspath(
 
 MODEL_PATH = os.path.join(
     BASE_DIR,
-    "Models",  # <-- CAPITAL M (matches your folder)
+    "Models",  
     "dance_style_model.keras"
 )
 

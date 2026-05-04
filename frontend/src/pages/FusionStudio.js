@@ -1,5 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "../styles/FusionStudio.css";
+
+const API_BASE = "http://localhost:8000";
 
 function FusionStudio() {
   const [video, setVideo] = useState(null);
@@ -11,37 +13,65 @@ function FusionStudio() {
   const [transformProgress, setTransformProgress] = useState("");
   const [error, setError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  
+  const [jobId, setJobId] = useState(null);
+
   const videoPreviewRef = useRef(null);
   const transformedVideoRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
 
-  const danceStyles = [
-    "Contemporary",
-    "HipHop",
-    "Kandyan"
-  ];
+  const danceStyles = ["Contemporary", "HipHop", "Kandyan"];
+
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      if (transformedVideoUrl) {
+        URL.revokeObjectURL(transformedVideoUrl);
+      }
+    };
+  }, [transformedVideoUrl]);
+
+  const resetPreviewVideo = () => {
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.src = "";
+    }
+  };
+
+  const clearPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
 
   const handleVideoChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.type.startsWith('video/')) {
+
+    if (file && file.type.startsWith("video/")) {
       setVideo(file);
       setDetectedStyle("");
       setTargetStyle("");
       setTransformedVideoUrl(null);
       setError(null);
-      
-      // Create preview for uploaded video
+      setTransformProgress("");
+      setJobId(null);
+      clearPolling();
+
       const videoUrl = URL.createObjectURL(file);
       if (videoPreviewRef.current) {
         videoPreviewRef.current.src = videoUrl;
       }
     } else {
-      alert('Please upload a valid video file');
+      alert("Please upload a valid video file");
     }
   };
 
   const handleDetectStyle = async () => {
-    if (!video) return alert("Please upload a video");
+    if (!video) {
+      alert("Please upload a video");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -50,7 +80,7 @@ function FusionStudio() {
     formData.append("file", video);
 
     try {
-      const response = await fetch("http://localhost:8000/detect/", {
+      const response = await fetch(`${API_BASE}/detect/`, {
         method: "POST",
         body: formData,
       });
@@ -62,7 +92,7 @@ function FusionStudio() {
       const data = await response.json();
       setDetectedStyle(data.dance_style);
     } catch (err) {
-      console.error('Detection error:', err);
+      console.error("Detection error:", err);
       setError("Error detecting dance style. Please try again.");
       alert("Error detecting dance style");
     } finally {
@@ -70,8 +100,59 @@ function FusionStudio() {
     }
   };
 
+  const pollRenderStatus = (currentJobId) => {
+    clearPolling();
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE}/render/status/${currentJobId}`);
+
+        if (!response.ok) {
+          throw new Error(`Status check failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === "pending") {
+          setTransformProgress("Job queued in Google Colab...");
+        } else if (data.status === "processing") {
+          setTransformProgress("Rendering 3D video with original music...");
+        } else if (data.status === "completed") {
+          clearPolling();
+          setTransformProgress("Downloading final video...");
+
+          const downloadUrl = `${API_BASE}/render/download/${currentJobId}`;
+          setTransformedVideoUrl(downloadUrl);
+
+          setTransformProgress("");
+          setIsTransforming(false);
+
+          setTimeout(() => {
+            if (transformedVideoRef.current) {
+              transformedVideoRef.current.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }
+          }, 200);
+        } else if (data.status === "failed") {
+          clearPolling();
+          setIsTransforming(false);
+          setTransformProgress("");
+          setError("3D rendering failed in Colab. Please try again.");
+          alert("3D rendering failed in Colab.");
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+        clearPolling();
+        setIsTransforming(false);
+        setTransformProgress("");
+        setError(`Failed while checking job status: ${err.message}`);
+      }
+    }, 5000);
+  };
+
   const handleStyleTransfer = async () => {
-    // Validation
     if (!targetStyle) {
       alert("Please select a target style");
       return;
@@ -90,20 +171,16 @@ function FusionStudio() {
     setIsTransforming(true);
     setTransformedVideoUrl(null);
     setError(null);
-    setTransformProgress("Uploading video...");
+    setTransformProgress("Uploading video and creating render job...");
+    clearPolling();
 
     try {
-      console.log(`Starting transformation: ${detectedStyle} → ${targetStyle}`);
-      
-      // Create form data with video and target style
       const formData = new FormData();
-      formData.append('file', video);
-      formData.append('target_style', targetStyle);
+      formData.append("file", video);
+      formData.append("target_style", targetStyle);
 
-      setTransformProgress("Processing video and extracting poses...");
-      
-      const response = await fetch('http://localhost:8000/api/transform', {
-        method: 'POST',
+      const response = await fetch(`${API_BASE}/render/transform`, {
+        method: "POST",
         body: formData,
       });
 
@@ -112,37 +189,27 @@ function FusionStudio() {
         throw new Error(errorData.detail || `Server error: ${response.status}`);
       }
 
-      setTransformProgress("Generating skeleton video...");
-      
-      // Get the video blob
-      const blob = await response.blob();
-      const videoUrl = URL.createObjectURL(blob);
-      
-      setTransformedVideoUrl(videoUrl);
+      const data = await response.json();
+
+      if (!data.job_id) {
+        throw new Error("No job ID returned from server.");
+      }
+
+      setJobId(data.job_id);
+      setTransformProgress("Render job created. Waiting for Colab worker...");
+      pollRenderStatus(data.job_id);
+    } catch (err) {
+      console.error("Style transfer error:", err);
+      setError(`Transformation failed: ${err.message || "Unknown error occurred"}`);
+      alert(`Style transfer failed: ${err.message || "Unknown error occurred"}`);
       setTransformProgress("");
-      
-      console.log('Transformation successful');
-      
-      // Scroll to transformed video
-      setTimeout(() => {
-        if (transformedVideoRef.current) {
-          transformedVideoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-      
-    } catch (error) {
-      console.error('Style transfer error:', error);
-      setError(`Transformation failed: ${error.message || 'Unknown error occurred'}`);
-      alert(`Style transfer failed: ${error.message || 'Unknown error occurred'}`);
-      setTransformProgress("");
-    } finally {
       setIsTransforming(false);
     }
   };
 
   const handleDownload = () => {
     if (transformedVideoUrl) {
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = transformedVideoUrl;
       a.download = `transformed_${targetStyle}_${Date.now()}.mp4`;
       document.body.appendChild(a);
@@ -152,12 +219,15 @@ function FusionStudio() {
   };
 
   const handleReset = () => {
+    clearPolling();
     setVideo(null);
     setDetectedStyle("");
     setTargetStyle("");
     setTransformedVideoUrl(null);
     setError(null);
     setTransformProgress("");
+    setJobId(null);
+    resetPreviewVideo();
   };
 
   const handleDragOver = (e) => {
@@ -173,21 +243,25 @@ function FusionStudio() {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
+
     const files = e.dataTransfer.files;
-    if (files.length > 0 && files[0].type.startsWith('video/')) {
-      setVideo(files[0]);
+    if (files.length > 0 && files[0].type.startsWith("video/")) {
+      const file = files[0];
+      setVideo(file);
       setDetectedStyle("");
       setTargetStyle("");
       setTransformedVideoUrl(null);
       setError(null);
-      
-      // Create preview
-      const videoUrl = URL.createObjectURL(files[0]);
+      setTransformProgress("");
+      setJobId(null);
+      clearPolling();
+
+      const videoUrl = URL.createObjectURL(file);
       if (videoPreviewRef.current) {
         videoPreviewRef.current.src = videoUrl;
       }
     } else {
-      alert('Please upload a valid video file (MP4, MOV, AVI)');
+      alert("Please upload a valid video file (MP4, MOV, AVI)");
     }
   };
 
@@ -203,7 +277,6 @@ function FusionStudio() {
         </div>
 
         <div className="fusion-content">
-          {/* Upload Section */}
           <div className="fusion-section archive-container">
             <h2>Upload Dance Video</h2>
             <div className="upload-area">
@@ -215,9 +288,9 @@ function FusionStudio() {
                   className="file-upload-input"
                   onChange={handleVideoChange}
                 />
-                <label 
-                  htmlFor="video-upload" 
-                  className={`file-upload-label ${isDragging ? 'drag-over' : ''}`}
+                <label
+                  htmlFor="video-upload"
+                  className={`file-upload-label ${isDragging ? "drag-over" : ""}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -229,6 +302,7 @@ function FusionStudio() {
                   </svg>
                   <span>Browse Video Files or Drag & Drop</span>
                 </label>
+
                 {video && (
                   <div className="file-upload-preview">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -244,14 +318,11 @@ function FusionStudio() {
                         {(video.size / (1024 * 1024)).toFixed(2)} MB
                       </span>
                     </div>
-                    <button 
+                    <button
                       className="clear-file-btn"
                       onClick={(e) => {
                         e.preventDefault();
-                        setVideo(null);
-                        setDetectedStyle("");
-                        setTargetStyle("");
-                        setTransformedVideoUrl(null);
+                        handleReset();
                       }}
                       aria-label="Remove file"
                     >
@@ -263,23 +334,11 @@ function FusionStudio() {
                   </div>
                 )}
               </div>
+
               <p className="upload-hint">
                 Supports MP4, MOV, AVI up to 500MB. Ensure good lighting and full body visibility.
               </p>
             </div>
-
-            {/* Video Preview
-            {video && (
-              <div className="video-preview-section">
-                <h3>Original Video Preview</h3>
-                <video
-                  ref={videoPreviewRef}
-                  controls
-                  className="video-preview"
-                  style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '15px' }}
-                />
-              </div>
-            )} */}
 
             <button
               className="search-button"
@@ -297,7 +356,6 @@ function FusionStudio() {
             </button>
           </div>
 
-          {/* Error Display */}
           {error && (
             <div className="fusion-section archive-container error-section">
               <div className="error-message">
@@ -311,7 +369,6 @@ function FusionStudio() {
             </div>
           )}
 
-          {/* Detected Style Section */}
           {detectedStyle && (
             <div className="fusion-section archive-container">
               <div className="style-info">
@@ -321,9 +378,13 @@ function FusionStudio() {
                   <div className="detected-style-card">
                     <div className="style-icon">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L15 9L22 10L17 14L18 21L12 17L6 21L7 14L2 10L9 9L12 2Z" 
-                              stroke="#ff6b9d" strokeWidth="2" strokeLinecap="round" 
-                              strokeLinejoin="round"/>
+                        <path
+                          d="M12 2L15 9L22 10L17 14L18 21L12 17L6 21L7 14L2 10L9 9L12 2Z"
+                          stroke="#ff6b9d"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </div>
                     <h3>{detectedStyle}</h3>
@@ -334,14 +395,13 @@ function FusionStudio() {
             </div>
           )}
 
-          {/* Target Style Selection */}
           {detectedStyle && (
             <div className="fusion-section archive-container">
               <h2>Select Target Dance Style</h2>
               <p className="section-description">
                 Choose a cultural dance style to transform your dance into
               </p>
-              
+
               <div className="style-selection">
                 <select
                   className="search-input"
@@ -351,9 +411,11 @@ function FusionStudio() {
                 >
                   <option value="">Select transformation style</option>
                   {danceStyles
-                    .filter(style => style !== detectedStyle)
+                    .filter((style) => style !== detectedStyle)
                     .map((style) => (
-                      <option key={style} value={style}>{style}</option>
+                      <option key={style} value={style}>
+                        {style}
+                      </option>
                     ))}
                 </select>
 
@@ -366,9 +428,13 @@ function FusionStudio() {
                       </div>
                       <div className="transfer-arrow">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                          <path d="M4 12H20M20 12L14 6M20 12L14 18" 
-                                stroke="#a8d8ea" strokeWidth="2" 
-                                strokeLinecap="round" strokeLinejoin="round"/>
+                          <path
+                            d="M4 12H20M20 12L14 6M20 12L14 18"
+                            stroke="#a8d8ea"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
                         </svg>
                       </div>
                       <div className="style-to">
@@ -377,14 +443,14 @@ function FusionStudio() {
                       </div>
                     </div>
 
-                    <button 
+                    <button
                       className="search-button"
                       onClick={handleStyleTransfer}
                       disabled={isTransforming}
                       style={{
-                        background: isTransforming 
-                          ? "#cccccc" 
-                          : "linear-gradient(135deg, #a8d8ea 0%, #7b68ee 100%)"
+                        background: isTransforming
+                          ? "#cccccc"
+                          : "linear-gradient(135deg, #a8d8ea 0%, #7b68ee 100%)",
                       }}
                     >
                       {isTransforming ? (
@@ -400,20 +466,19 @@ function FusionStudio() {
                 )}
               </div>
 
-              {/* Style Grid for Quick Selection */}
               <div className="style-grid">
                 <h3>Quick Style Selection</h3>
                 <div className="style-chips">
                   {danceStyles
-                    .filter(style => style !== detectedStyle)
+                    .filter((style) => style !== detectedStyle)
                     .map((style) => (
                       <div
                         key={style}
-                        className={`style-chip ${targetStyle === style ? 'active' : ''}`}
+                        className={`style-chip ${targetStyle === style ? "active" : ""}`}
                         onClick={() => !isTransforming && setTargetStyle(style)}
-                        style={{ 
-                          cursor: isTransforming ? 'not-allowed' : 'pointer',
-                          opacity: isTransforming ? 0.5 : 1
+                        style={{
+                          cursor: isTransforming ? "not-allowed" : "pointer",
+                          opacity: isTransforming ? 0.5 : 1,
                         }}
                       >
                         {style}
@@ -424,9 +489,19 @@ function FusionStudio() {
             </div>
           )}
 
-          {/* Transformed Video Result */}
+          {jobId && isTransforming && (
+            <div className="fusion-section archive-container">
+              <h2>Rendering in Progress</h2>
+              <p><strong>Job ID:</strong> {jobId}</p>
+              <p>{transformProgress}</p>
+            </div>
+          )}
+
           {transformedVideoUrl && (
-            <div className="fusion-section archive-container result-section" ref={transformedVideoRef}>
+            <div
+              className="fusion-section archive-container result-section"
+              ref={transformedVideoRef}
+            >
               <div className="result-header">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
                   <path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.7088 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18457 2.99721 7.13633 4.39828 5.49707C5.79935 3.85782 7.69279 2.71538 9.79619 2.24015C11.8996 1.76491 14.1003 1.98234 16.07 2.86" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -434,27 +509,27 @@ function FusionStudio() {
                 </svg>
                 <h2>Transformation Complete!</h2>
               </div>
+
               <p className="result-info">
-                Successfully transformed from <strong>{detectedStyle}</strong> to <strong>{targetStyle}</strong>
+                Successfully transformed from <strong>{detectedStyle}</strong> to{" "}
+                <strong>{targetStyle}</strong>
               </p>
-              
-              {/* <div className="transformed-video-container">
-                <h3>Skeleton Dance Video</h3>
+
+              <div className="transformed-video-container">
+                <h3>3D Transformed Dance Video</h3>
                 <video
                   src={transformedVideoUrl}
                   controls
-                  autoPlay
-                  loop
                   className="transformed-video"
-                  style={{ 
-                    width: '100%', 
-                    maxWidth: '640px', 
-                    borderRadius: '8px',
-                    margin: '20px auto',
-                    display: 'block'
+                  style={{
+                    width: "100%",
+                    maxWidth: "700px",
+                    borderRadius: "8px",
+                    margin: "20px auto",
+                    display: "block",
                   }}
                 />
-              </div> */}
+              </div>
 
               <div className="action-buttons">
                 <button className="download-button" onClick={handleDownload}>
@@ -465,6 +540,7 @@ function FusionStudio() {
                   </svg>
                   Download Video
                 </button>
+
                 <button className="reset-button" onClick={handleReset}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M1 4V10H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -477,12 +553,10 @@ function FusionStudio() {
             </div>
           )}
 
-          {/* Info Section */}
           <div className="music-recommendations">
             <h3>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2V22M5 12H19" stroke="#ffa500" strokeWidth="2" 
-                      strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 2V22M5 12H19" stroke="#ffa500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               How It Works
             </h3>
@@ -500,15 +574,15 @@ function FusionStudio() {
                 </p>
               </div>
               <div className="music-item">
-                <h4>3. Choose Target Style(s)</h4>
+                <h4>3. Choose Target Style</h4>
                 <p className="description">
-                  Select one or multiple target dance styles to transform or blend with your original movement.
+                  Select the target dance style for the transformation.
                 </p>
               </div>
               <div className="music-item">
-                <h4>4. AI Motion Transfer & Style Fusion</h4>
+                <h4>4. AI Motion Transfer + 3D Rendering</h4>
                 <p className="description">
-                  Pose sequences are transformed and fused using AI-based motion modeling to generate a new dance movement that combines selected styles.
+                  The motion is transformed by AI, rendered as a 3D dance video, and merged with the original music.
                 </p>
               </div>
             </div>

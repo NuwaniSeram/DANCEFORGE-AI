@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database.mongodb import users_collection
-from app.routes import videos, detect, transform
+from app.routes import videos, detect, transform, render_status
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
@@ -11,14 +11,15 @@ app = FastAPI(title="DanceForge AI API")
 # CORS middleware to allow frontend to access API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    # allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Get absolute paths
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Project root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent 
 OUTPUTS_DIR = BASE_DIR / "outputs"
 UPLOADS_DIR = BASE_DIR / "uploads"
 MODELS_DIR = BASE_DIR / "Models"
@@ -46,7 +47,9 @@ print("="*70 + "\n")
 # Include routers
 app.include_router(videos.router)
 app.include_router(detect.router)
-app.include_router(transform.router, prefix="/api", tags=["transform"])
+app.include_router(render_status.router)
+# app.include_router(transform.router, prefix="/api", tags=["transform"])
+app.include_router(transform.router)
 
 # Mount static files directory with ABSOLUTE path
 if OUTPUTS_DIR.exists():
