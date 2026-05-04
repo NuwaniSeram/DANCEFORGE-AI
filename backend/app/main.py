@@ -6,9 +6,9 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
 from app.routes import videos
-from app.routes import emotion_routes
+# from app.routes import emotion_routes
 from app.routes import emotion_history_routes
-from app.routes import performance_routes 
+# from app.routes import performance_routes 
 
 app = FastAPI(title="DanceForge AI API")
 
@@ -16,8 +16,7 @@ app = FastAPI(title="DanceForge AI API")
 app.add_middleware(
     CORSMiddleware,
     # allow_origins=["http://localhost:3000"],
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:8001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,9 +62,9 @@ if OUTPUTS_DIR.exists():
 else:
     print(f"⚠ Warning: Outputs directory not found: {OUTPUTS_DIR}\n")
 
-app.include_router(emotion_routes.router)
+# app.include_router(emotion_routes.router)
 app.include_router(emotion_history_routes.router)
-app.include_router(performance_routes.router)
+# app.include_router(performance_routes.router)
 @app.get("/")
 def test_db():
     users_collection.insert_one({"test": "MongoDB Connected"})
