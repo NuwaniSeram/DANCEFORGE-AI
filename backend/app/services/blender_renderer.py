@@ -66,6 +66,7 @@ def render_blender_avatar(pose_npy_path, audio_path, output_video_path, fps=30):
     # 2. Run Blender Headless
     blender_cmd = [
         BLENDER_PATH,
+        "--factory-startup",         # Crucial for AMD driver stability
         "-b", BLEND_FILE,            # Run in background with the base avatar file
         "-P", ANIMATE_SCRIPT,        # Run our python script
         "--",                        # Separator for script arguments
@@ -77,10 +78,19 @@ def render_blender_avatar(pose_npy_path, audio_path, output_video_path, fps=30):
     
     try:
         # Run blender process
-        subprocess.run(blender_cmd, check=True)
+        result = subprocess.run(blender_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print("=== BLENDER ERROR LOG ===")
+            print(result.stdout)
+            print(result.stderr)
+            raise RuntimeError(f"Blender crashed with exit code {result.returncode}")
         
-        # 3. Merge frames and audio using ffmpeg
-        print("Merging frames and original audio...")
+        # 3. Check if frames exist
+        rendered_frames = [f for f in os.listdir(frames_dir) if f.endswith('.png')]
+        if not rendered_frames:
+            raise RuntimeError("Blender completed but produced NO frames. Check scene configuration.")
+
+        print(f"Blender successfully rendered {len(rendered_frames)} frames. Merging audio with FFmpeg...")
         frames_pattern = os.path.join(frames_dir, "frame_%04d.png")
         
         ffmpeg_cmd = [
@@ -88,14 +98,19 @@ def render_blender_avatar(pose_npy_path, audio_path, output_video_path, fps=30):
             '-i', audio_path, '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
             '-c:a', 'aac', '-shortest', output_video_path
         ]
-        subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        ff_result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        if ff_result.returncode != 0:
+            print("=== FFMPEG ERROR LOG ===")
+            print(ff_result.stderr)
+            raise RuntimeError(f"FFmpeg crashed with exit code {ff_result.returncode}")
         
         if not os.path.exists(output_video_path) or os.path.getsize(output_video_path) == 0:
             raise RuntimeError("FFmpeg created an empty file or failed to create the output.")
             
         print(f"Render complete! Saved to {output_video_path}")
-    except subprocess.CalledProcessError as e:
-        print(f"Blender or FFmpeg rendering failed: {e}")
+    except Exception as e:
+        print(f"Rendering Pipeline failed: {e}")
         raise
     finally:
         # Clean up temp files
