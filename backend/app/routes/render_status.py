@@ -17,12 +17,14 @@ async def get_render_status(job_id: str):
     completed_dir = COMPLETED_DIR / job_id
     if completed_dir.exists():
         output_file = completed_dir / "final_output.mp4"
-        if output_file.exists():
+        if output_file.exists() and output_file.stat().st_size > 0:
             return {
                 "job_id": job_id,
                 "status": "completed",
                 "download_url": f"/render/download/{job_id}"
             }
+        elif output_file.exists() and output_file.stat().st_size == 0:
+            return {"job_id": job_id, "status": "failed"}
         else:
             if (FAILED_DIR / job_id).exists():
                 return {"job_id": job_id, "status": "failed"}
@@ -44,5 +46,10 @@ async def download_rendered_video(job_id: str):
     return FileResponse(
         path=str(output_file),
         media_type="video/mp4",
-        filename=f"{job_id}_final_output.mp4"
+        filename=f"{job_id}_final_output.mp4",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
     )
