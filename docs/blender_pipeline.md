@@ -44,14 +44,17 @@ MediaPipe provides 33 landmarks. We use these landmarks to construct direction v
 In `backend/app/scripts/animate.py`, you will find the `BONE_MAPPING` dictionary. Update the keys if your rig uses different naming conventions (e.g., Mixamo rigs often use `mixamorig:LeftArm` instead of `UpperArm.L`).
 ```python
 BONE_MAPPING = {
-    "UpperArm.L": (11, 13), # Shoulder to Elbow
-    "LowerArm.L": (13, 15), # Elbow to Wrist
-    "UpperArm.R": (12, 14),
-    "LowerArm.R": (14, 16),
-    "UpperLeg.L": (23, 25), # Hip to Knee
-    "LowerLeg.L": (25, 27), # Knee to Ankle
-    "UpperLeg.R": (24, 26),
-    "LowerLeg.R": (26, 28)
+    # Arms
+    "mixamorig:LeftArm": (11, 13),
+    "mixamorig:LeftForeArm": (13, 15),
+    "mixamorig:RightArm": (12, 14),
+    "mixamorig:RightForeArm": (14, 16),
+
+    # Legs
+    "mixamorig:LeftUpLeg": (23, 25),
+    "mixamorig:LeftLeg": (25, 27),
+    "mixamorig:RightUpLeg": (24, 26),
+    "mixamorig:RightLeg": (26, 28),
 }
 ```
 

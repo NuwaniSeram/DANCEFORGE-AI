@@ -84,12 +84,15 @@ def render_blender_avatar(pose_npy_path, audio_path, output_video_path, fps=30):
         frames_pattern = os.path.join(frames_dir, "frame_%04d.png")
         
         ffmpeg_cmd = [
-            'ffmpeg', '-y', '-framerate', str(fps), '-i', frames_pattern,
+            'ffmpeg', '-y', '-framerate', str(fps), '-start_number', '1', '-i', frames_pattern,
             '-i', audio_path, '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
             '-c:a', 'aac', '-shortest', output_video_path
         ]
         subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
+        if not os.path.exists(output_video_path) or os.path.getsize(output_video_path) == 0:
+            raise RuntimeError("FFmpeg created an empty file or failed to create the output.")
+            
         print(f"Render complete! Saved to {output_video_path}")
     except subprocess.CalledProcessError as e:
         print(f"Blender or FFmpeg rendering failed: {e}")
