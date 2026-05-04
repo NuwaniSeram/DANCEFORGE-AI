@@ -23,6 +23,10 @@ async def get_render_status(job_id: str):
                 "status": "completed",
                 "download_url": f"/render/download/{job_id}"
             }
+        else:
+            if (FAILED_DIR / job_id).exists():
+                return {"job_id": job_id, "status": "failed"}
+            return {"job_id": job_id, "status": "processing"}
 
     if (FAILED_DIR / job_id).exists():
         return {"job_id": job_id, "status": "failed"}
