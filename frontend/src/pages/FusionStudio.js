@@ -6,7 +6,8 @@ const API_BASE = "http://localhost:8000";
 function FusionStudio() {
   const [video, setVideo] = useState(null);
   const [detectedStyle, setDetectedStyle] = useState("");
-  const [targetStyle, setTargetStyle] = useState("");
+  const [selectedStyles, setSelectedStyles] = useState([]);
+  const [ratios, setRatios] = useState({});
   const [loading, setLoading] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
   const [transformedVideoUrl, setTransformedVideoUrl] = useState(null);
@@ -45,13 +46,53 @@ function FusionStudio() {
     }
   };
 
+  const handleStyleToggle = (style) => {
+    if (isTransforming) return;
+    
+    setSelectedStyles((prev) => {
+      let newStyles;
+      if (prev.includes(style)) {
+        newStyles = prev.filter((s) => s !== style);
+      } else {
+        newStyles = [...prev, style];
+      }
+
+      // Auto-adjust ratios
+      const newRatios = { ...ratios };
+      if (!newStyles.includes(style)) {
+        delete newRatios[style];
+      } else if (newStyles.length === 1) {
+        newRatios[style] = 100;
+      } else {
+        const evenRatio = Math.floor(100 / newStyles.length);
+        let remainder = 100 - evenRatio * newStyles.length;
+        newStyles.forEach((s) => {
+          newRatios[s] = evenRatio + (remainder > 0 ? 1 : 0);
+          remainder = remainder > 0 ? remainder - 1 : 0;
+        });
+      }
+      setRatios(newRatios);
+      return newStyles;
+    });
+    setError(null);
+  };
+
+  const handleRatioChange = (style, value) => {
+    const newVal = parseInt(value, 10);
+    if (isNaN(newVal)) return;
+    setRatios((prev) => ({ ...prev, [style]: newVal }));
+  };
+
+  const totalRatio = Object.values(ratios).reduce((sum, val) => sum + val, 0);
+
   const handleVideoChange = (e) => {
     const file = e.target.files[0];
 
     if (file && file.type.startsWith("video/")) {
       setVideo(file);
       setDetectedStyle("");
-      setTargetStyle("");
+      setSelectedStyles([]);
+      setRatios({});
       setTransformedVideoUrl(null);
       setError(null);
       setTransformProgress("");
@@ -153,8 +194,8 @@ function FusionStudio() {
   };
 
   const handleStyleTransfer = async () => {
-    if (!targetStyle) {
-      alert("Please select a target style");
+    if (selectedStyles.length === 0) {
+      alert("Please select at least one target style");
       return;
     }
 
@@ -163,23 +204,26 @@ function FusionStudio() {
       return;
     }
 
-    if (detectedStyle === targetStyle) {
-      alert("Target style is the same as the detected style. Please choose a different style.");
+    if (totalRatio !== 100) {
+      alert(`Ratios must total exactly 100%. Currently at ${totalRatio}%.`);
       return;
     }
 
     setIsTransforming(true);
     setTransformedVideoUrl(null);
     setError(null);
-    setTransformProgress("Uploading video and creating render job...");
+    setTransformProgress("Uploading video and creating fusion render job...");
     clearPolling();
 
     try {
       const formData = new FormData();
       formData.append("file", video);
-      formData.append("target_style", targetStyle);
+      formData.append("target_styles", JSON.stringify(selectedStyles));
+      
+      const decimalRatios = selectedStyles.map((style) => ratios[style] / 100.0);
+      formData.append("ratios", JSON.stringify(decimalRatios));
 
-      const response = await fetch(`${API_BASE}/render/transform`, {
+      const response = await fetch(`${API_BASE}/api/fusion-transform`, {
         method: "POST",
         body: formData,
       });
@@ -196,7 +240,7 @@ function FusionStudio() {
       }
 
       setJobId(data.job_id);
-      setTransformProgress("Render job created. Waiting for Colab worker...");
+      setTransformProgress("Render job created. Processing 3D Fusion...");
       pollRenderStatus(data.job_id);
     } catch (err) {
       console.error("Style transfer error:", err);
@@ -211,7 +255,8 @@ function FusionStudio() {
     if (transformedVideoUrl) {
       const a = document.createElement("a");
       a.href = transformedVideoUrl;
-      a.download = `transformed_${targetStyle}_${Date.now()}.mp4`;
+      const stylesStr = selectedStyles.length > 0 ? selectedStyles.join("_") : "fusion";
+      a.download = `transformed_${stylesStr}_${Date.now()}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -222,7 +267,8 @@ function FusionStudio() {
     clearPolling();
     setVideo(null);
     setDetectedStyle("");
-    setTargetStyle("");
+    setSelectedStyles([]);
+    setRatios({});
     setTransformedVideoUrl(null);
     setError(null);
     setTransformProgress("");
@@ -249,7 +295,8 @@ function FusionStudio() {
       const file = files[0];
       setVideo(file);
       setDetectedStyle("");
-      setTargetStyle("");
+      setSelectedStyles([]);
+      setRatios({});
       setTransformedVideoUrl(null);
       setError(null);
       setTransformProgress("");
@@ -397,95 +444,97 @@ function FusionStudio() {
 
           {detectedStyle && (
             <div className="fusion-section archive-container">
-              <h2>Select Target Dance Style</h2>
+              <h2>Select Target Dance Style(s)</h2>
               <p className="section-description">
-                Choose a cultural dance style to transform your dance into
+                Choose one or more cultural dance styles to fuse your dance into.
               </p>
 
-              <div className="style-selection">
-                <select
-                  className="search-input"
-                  value={targetStyle}
-                  onChange={(e) => setTargetStyle(e.target.value)}
-                  disabled={isTransforming}
-                >
-                  <option value="">Select transformation style</option>
-                  {danceStyles
-                    .filter((style) => style !== detectedStyle)
-                    .map((style) => (
-                      <option key={style} value={style}>
-                        {style}
-                      </option>
-                    ))}
-                </select>
-
-                {targetStyle && (
-                  <div className="style-transfer-preview">
-                    <div className="style-comparison">
-                      <div className="style-from">
-                        <span className="video-label">FROM</span>
-                        <h4>{detectedStyle}</h4>
-                      </div>
-                      <div className="transfer-arrow">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                          <path
-                            d="M4 12H20M20 12L14 6M20 12L14 18"
-                            stroke="#a8d8ea"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <div className="style-to">
-                        <span className="video-label">TO</span>
-                        <h4>{targetStyle}</h4>
-                      </div>
-                    </div>
-
-                    <button
-                      className="search-button"
-                      onClick={handleStyleTransfer}
-                      disabled={isTransforming}
+              <div className="style-grid" style={{ marginBottom: "20px" }}>
+                <div className="style-chips" style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+                  {danceStyles.map((style) => (
+                    <div
+                      key={style}
+                      className={`style-chip ${selectedStyles.includes(style) ? "active" : ""}`}
+                      onClick={() => handleStyleToggle(style)}
                       style={{
-                        background: isTransforming
-                          ? "#cccccc"
-                          : "linear-gradient(135deg, #a8d8ea 0%, #7b68ee 100%)",
+                        padding: "10px 20px",
+                        borderRadius: "20px",
+                        border: "2px solid transparent",
+                        background: selectedStyles.includes(style) ? "#e0e7ff" : "#f1f5f9",
+                        color: selectedStyles.includes(style) ? "#4338ca" : "#475569",
+                        cursor: isTransforming ? "not-allowed" : "pointer",
+                        opacity: isTransforming ? 0.5 : 1,
+                        fontWeight: "600",
+                        transition: "all 0.2s"
                       }}
                     >
-                      {isTransforming ? (
-                        <>
-                          <span className="loading-spinner"></span>
-                          {transformProgress || "Transforming..."}
-                        </>
-                      ) : (
-                        "Start Style Transfer"
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="style-grid">
-                <h3>Quick Style Selection</h3>
-                <div className="style-chips">
-                  {danceStyles
-                    .filter((style) => style !== detectedStyle)
-                    .map((style) => (
-                      <div
-                        key={style}
-                        className={`style-chip ${targetStyle === style ? "active" : ""}`}
-                        onClick={() => !isTransforming && setTargetStyle(style)}
-                        style={{
-                          cursor: isTransforming ? "not-allowed" : "pointer",
-                          opacity: isTransforming ? 0.5 : 1,
-                        }}
-                      >
-                        {style}
-                      </div>
-                    ))}
+                      {style}
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {selectedStyles.length > 0 && (
+                <div className="ratios-container" style={{ background: "#f8fafc", padding: "20px", borderRadius: "12px", marginBottom: "30px" }}>
+                  <h3 style={{ marginTop: 0, marginBottom: "15px", fontSize: "1.1rem", color: "#334155" }}>Fusion Ratios</h3>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                    {selectedStyles.map((style) => (
+                      <div key={style} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ fontWeight: "500" }}>{style}</span>
+                          <span style={{ color: "#3b82f6", fontWeight: "bold" }}>{ratios[style]}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={ratios[style]}
+                          onChange={(e) => handleRatioChange(style, e.target.value)}
+                          disabled={selectedStyles.length === 1 || isTransforming}
+                          style={{ width: "100%", accentColor: "#3b82f6" }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div style={{ 
+                    marginTop: "20px", 
+                    textAlign: "right", 
+                    fontWeight: "bold", 
+                    color: totalRatio === 100 ? "#10b981" : "#ef4444" 
+                  }}>
+                    Total: {totalRatio}%
+                  </div>
+                </div>
+              )}
+
+              {selectedStyles.length > 0 && (
+                <div className="style-transfer-preview">
+                  <button
+                    className="search-button"
+                    onClick={handleStyleTransfer}
+                    disabled={isTransforming || totalRatio !== 100}
+                    style={{
+                      background: (isTransforming || totalRatio !== 100)
+                        ? "#cccccc"
+                        : "linear-gradient(135deg, #a8d8ea 0%, #7b68ee 100%)",
+                      width: "100%",
+                      padding: "15px",
+                      fontSize: "1.1rem"
+                    }}
+                  >
+                    {isTransforming ? (
+                      <>
+                        <span className="loading-spinner"></span>
+                        {transformProgress || "Transforming..."}
+                      </>
+                    ) : (
+                      "Start Fusion Transfer"
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -511,8 +560,10 @@ function FusionStudio() {
               </div>
 
               <p className="result-info">
-                Successfully transformed from <strong>{detectedStyle}</strong> to{" "}
-                <strong>{targetStyle}</strong>
+                Successfully fused: 
+                <strong>
+                  {selectedStyles.map(s => ` ${s} (${ratios[s]}%)`).join(" + ")}
+                </strong>
               </p>
 
               <div className="transformed-video-container">

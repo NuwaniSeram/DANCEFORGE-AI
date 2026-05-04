@@ -186,6 +186,23 @@ bpy.context.scene.render.fps = int(round(fps))
 bpy.context.scene.frame_start = 1
 bpy.context.scene.frame_end = len(smoothed_frames)
 
+# For AMD GPU / Headless Stability: FORCE WORKBENCH Engine
+bpy.context.scene.render.engine = 'BLENDER_WORKBENCH'
+
+# Disable any heavy rendering features if somehow enabled
+try:
+    bpy.context.scene.eevee.use_gtao = False
+    bpy.context.scene.eevee.use_bloom = False
+    bpy.context.scene.eevee.use_motion_blur = False
+    bpy.context.scene.eevee.use_volumetric_shadows = False
+except:
+    pass
+
+# Lower resolution for stability
+bpy.context.scene.render.resolution_x = 720
+bpy.context.scene.render.resolution_y = 1280
+bpy.context.scene.render.resolution_percentage = 100
+
 scale = 2.5
 hips_base = None
 
@@ -233,11 +250,15 @@ for i, frame_info in enumerate(smoothed_frames, start=1):
         p2 = to_blender_coord(pts[p2_name])
         
         import math
-        if math.isnan(p1.x) or math.isnan(p2.x):
+        
+        # 1. Coordinate safety check
+        if math.isnan(p1.x) or math.isnan(p2.x) or math.isinf(p1.x) or math.isinf(p2.x):
+            print(f"Warning: NaN or Inf coordinate found for {bone_name} at frame {frame_idx}. Skipping.")
             continue
             
         target_vector = (p2 - p1)
         
+        # 2. Near-zero vector safety
         if target_vector.length < 1e-4:
             continue
             
@@ -246,16 +267,27 @@ for i, frame_info in enumerate(smoothed_frames, start=1):
         target_vec_arm = (armature_obj.matrix_world.inverted().to_3x3() @ target_vector).normalized()
         current_vec_arm = pose_bone.vector.normalized()
         
-        rot_arm = current_vec_arm.rotation_difference(target_vec_arm)
-        
-        pose_bone.matrix = mathutils.Matrix.LocRotScale(
-            pose_bone.matrix.translation,
-            rot_arm @ pose_bone.matrix.to_quaternion(),
-            pose_bone.matrix.to_scale()
-        )
-        
-        bpy.context.view_layer.update()
-        pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=frame_idx)
+        try:
+            rot_arm = current_vec_arm.rotation_difference(target_vec_arm)
+            
+            # 3. Quaternion NaN safety
+            if math.isnan(rot_arm.w) or math.isnan(rot_arm.x) or math.isnan(rot_arm.y) or math.isnan(rot_arm.z):
+                print(f"Warning: NaN quaternion produced for {bone_name} at frame {frame_idx}. Skipping.")
+                continue
+                
+            rot_arm.normalize() # Ensure pure rotation
+            
+            pose_bone.matrix = mathutils.Matrix.LocRotScale(
+                pose_bone.matrix.translation,
+                rot_arm @ pose_bone.matrix.to_quaternion(),
+                pose_bone.matrix.to_scale()
+            )
+            
+            bpy.context.view_layer.update()
+            pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=frame_idx)
+        except Exception as e:
+            print(f"Error rotating {bone_name} at frame {frame_idx}: {e}")
+            continue
 
 # -------------------------------------------------------------------------
 # Rendering Settings
