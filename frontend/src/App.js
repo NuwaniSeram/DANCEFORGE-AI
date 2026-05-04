@@ -31,6 +31,14 @@ function Navigation() {
           </Link>
         </li>
         <li>
+          <Link to="/page1" className={location.pathname === '/page1' ? 'active' : ''}>
+            Choreography Studio
+          </Link>
+        </li>
+        <li>
+          <Link to="/page2" className={location.pathname === '/page2' ? 'active' : ''}>
+            performance analysis
+          </Link>
           <Link to="/emotion" className={location.pathname === '/emotion' ? 'active' : ''}>
           Choreography Studio
         </Link>
@@ -47,7 +55,7 @@ function Navigation() {
         </li>
         <li>
           <Link to="/page4" className={location.pathname === '/page4' ? 'active' : ''}>
-            Page 4
+            Community
           </Link>
         </li>
         
